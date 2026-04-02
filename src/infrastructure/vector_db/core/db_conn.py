@@ -1,6 +1,4 @@
-from abc import ABC, abstractmethod
 import logging
-import psycopg
 from psycopg import AsyncConnection
 from src.core.config.loader import load_settings
 from src.core.config.settings import AppSettings
