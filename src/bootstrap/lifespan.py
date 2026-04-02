@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 # from rate_limit.middleware import limiter
-# from src.infrastructure.vector_db.core.db_client import PostgresVectorClient
+from src.infrastructure.vector_db.core.db_client import PostgresVectorClient
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,11 +9,11 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # db_client = PostgresVectorClient()
+    db_client = PostgresVectorClient()
     
     try:
-        # await db_client.init()
-        # app.state.db_client = db_client
+        await db_client.init()
+        app.state.db_client = db_client
         
         # await limiter.init()
         

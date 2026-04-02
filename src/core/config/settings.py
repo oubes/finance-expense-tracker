@@ -45,6 +45,7 @@ class DatabaseConfig(BaseModel):
     db: str
     user: str
     password: str
+    full_url: str
 
 
 class RedisConfig(BaseModel):
@@ -84,6 +85,15 @@ class AppSettings(BaseSettings):
     postgres_db: str = Field(alias="POSTGRES_DB")
     postgres_user: str = Field(alias="POSTGRES_USER")
     postgres_password: str = Field(alias="POSTGRES_PASSWORD")
+    @property
+    def postgres_full_url(self) -> str:
+        return (
+            f"postgresql://{self.postgres_user}:"
+            f"{self.postgres_password}@"
+            f"{self.postgres_host}:"
+            f"{self.postgres_port}/"
+            f"{self.postgres_db}"
+        )
 
     # ---------- Flat Redis ENV ----------
     redis_host: str = Field(alias="REDIS_HOST")
@@ -111,6 +121,7 @@ class AppSettings(BaseSettings):
             db=self.postgres_db,
             user=self.postgres_user,
             password=self.postgres_password,
+            full_url=self.postgres_full_url,
         )
 
         self.redis = RedisConfig(
