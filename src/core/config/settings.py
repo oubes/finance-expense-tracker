@@ -1,0 +1,121 @@
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# ---------- Sub Models ----------
+class LLMConfig(BaseModel):
+    provider: str
+    base_url: str
+    model: str
+    temperature: float = 0.0
+    max_tokens: int = 256
+
+
+class EmbeddingsConfig(BaseModel):
+    model: str
+    dimension: int
+
+
+class RAGConfig(BaseModel):
+    chunk_size: int
+    chunk_overlap: int
+    top_k_retrieval: int
+    top_k_rerank: int
+
+
+class VectorDBConfig(BaseModel):
+    enabled: bool
+    table: str
+
+
+class RateLimitConfig(BaseModel):
+    requests: int
+    window_seconds: int
+
+
+class ObservabilityConfig(BaseModel):
+    metrics_enabled: bool
+    tracing_enabled: bool
+    otel_exporter_endpoint: str
+
+
+class DatabaseConfig(BaseModel):
+    host: str
+    port: int
+    db: str
+    user: str
+    password: str
+
+
+class RedisConfig(BaseModel):
+    host: str
+    port: int
+    db: int
+    password: str | None = None
+
+
+# ---------- Root Settings ----------
+class AppSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # App
+    app_name: str = Field(alias="APP_NAME")
+    app_env: str = Field(alias="APP_ENV")
+    debug: bool = Field(alias="DEBUG")
+    log_level: str = Field(alias="LOG_LEVEL")
+
+    # Server
+    host: str = Field(alias="HOST")
+    port: int = Field(alias="PORT")
+
+    # Security
+    secret_key: str = Field(alias="SECRET_KEY")
+
+    # External APIs
+    openai_api_key: str | None = Field(alias="ALIBABA_API_KEY", default=None)
+
+    # ---------- Flat DB ENV ----------
+    postgres_host: str = Field(alias="POSTGRES_HOST")
+    postgres_port: int = Field(alias="POSTGRES_PORT")
+    postgres_db: str = Field(alias="POSTGRES_DB")
+    postgres_user: str = Field(alias="POSTGRES_USER")
+    postgres_password: str = Field(alias="POSTGRES_PASSWORD")
+
+    # ---------- Flat Redis ENV ----------
+    redis_host: str = Field(alias="REDIS_HOST")
+    redis_port: int = Field(alias="REDIS_PORT")
+    redis_db: int = Field(alias="REDIS_DB")
+    redis_password: str | None = Field(alias="REDIS_PASSWORD", default=None)
+
+    # Structured configs (from YAML)
+    llm: LLMConfig
+    embeddings: EmbeddingsConfig
+    rag: RAGConfig
+    vector_db: VectorDBConfig
+    rate_limit: RateLimitConfig
+    observability: ObservabilityConfig
+
+    # Infra configs (built from ENV)
+    database: DatabaseConfig | None = None
+    redis: RedisConfig | None = None
+
+    # ---------- Build nested configs ----------
+    def model_post_init(self, __context):
+        self.database = DatabaseConfig(
+            host=self.postgres_host,
+            port=self.postgres_port,
+            db=self.postgres_db,
+            user=self.postgres_user,
+            password=self.postgres_password,
+        )
+
+        self.redis = RedisConfig(
+            host=self.redis_host,
+            port=self.redis_port,
+            db=self.redis_db,
+            password=self.redis_password,
+        )

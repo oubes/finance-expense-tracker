@@ -1,7 +1,7 @@
 import time
 import asyncio
+import redis.asyncio as redis
 from pydantic import BaseModel
-from psycopg import AsyncConnection
 
 from src.core.config.settings import AppSettings
 
@@ -12,31 +12,26 @@ class DependencyStatus(BaseModel):
     latency_ms: float | None = None
 
 
-async def check_db(settings: AppSettings, timeout: float = 2.0) -> DependencyStatus:
+async def check_redis(settings: AppSettings, timeout: float = 1.0) -> DependencyStatus:
     start = time.perf_counter()
 
-    db = settings.database
+    r_conf = settings.redis
 
     try:
+        client = redis.Redis(
+            host=r_conf.host,
+            port=r_conf.port,
+            db=r_conf.db,
+            password=r_conf.password,
+        )
+
         async with asyncio.timeout(timeout):
-            conn = await AsyncConnection.connect(
-                host=db.host,
-                port=db.port,
-                dbname=db.db,
-                user=db.user,
-                password=db.password,
-            )
-
-            async with conn.cursor() as cur:
-                await cur.execute("SELECT 1")
-                await cur.fetchone()
-
-            await conn.close()
+            pong = await client.ping()
 
         latency = (time.perf_counter() - start) * 1000
 
         return DependencyStatus(
-            healthy=True,
+            healthy=bool(pong),
             detail="ok",
             latency_ms=latency,
         )
