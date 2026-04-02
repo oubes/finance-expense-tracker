@@ -1,0 +1,35 @@
+# LLM Configuration
+llm:
+  provider: "alibaba"
+  base_url: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+  model: "qwen-turbo"
+  temperature: 0.2
+  max_tokens: 256
+
+# Embeddings
+embeddings:
+  model: "text-embedding-v3"
+  dimension: 1024
+
+# RAG Settings
+rag:
+  chunk_size: 500
+  chunk_overlap: 50
+  top_k_retrieval: 5
+  top_k_rerank: 3
+
+# Vector DB
+vector_db:
+  enabled: true
+  table: "documents_embeddings"
+
+# Rate Limiting
+rate_limit:
+  requests: 100
+  window_seconds: 60
+
+# Observability
+observability:
+  metrics_enabled: true
+  tracing_enabled: true
+  otel_exporter_endpoint: "http://localhost:4317"
