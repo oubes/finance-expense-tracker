@@ -77,7 +77,7 @@ class AppSettings(BaseSettings):
     secret_key: str = Field(alias="SECRET_KEY")
 
     # External APIs
-    openai_api_key: str | None = Field(alias="ALIBABA_API_KEY", default=None)
+    alibaba_api_key: str | None = Field(alias="ALIBABA_API_KEY", default=None)
 
     # ---------- Flat DB ENV ----------
     postgres_host: str = Field(alias="POSTGRES_HOST")
