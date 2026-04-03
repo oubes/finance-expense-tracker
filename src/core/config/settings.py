@@ -10,7 +10,6 @@ class LLMConfig(BaseModel):
     temperature: float = 0.0
     max_tokens: int = 256
 
-
 class EmbeddingsConfig(BaseModel):
     model: str
     dimension: int
@@ -21,8 +20,7 @@ class RAGConfig(BaseModel):
     chunk_overlap: int
     top_k_retrieval: int
     top_k_rerank: int
-
-
+    cross_encoder_model: str
 class VectorDBConfig(BaseModel):
     enabled: bool
     table: str

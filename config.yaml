@@ -17,6 +17,7 @@ rag:
   chunk_overlap: 50
   top_k_retrieval: 5
   top_k_rerank: 3
+  cross_encoder_model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 # Vector DB
 vector_db:
