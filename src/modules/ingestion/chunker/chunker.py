@@ -6,7 +6,7 @@ from src.modules.ingestion.chunker.cleaner import clean_text
 from src.modules.ingestion.chunker.validator import is_valid_text
 from src.modules.ingestion.chunker.metadata_enricher import enrich_metadata
 from src.modules.ingestion.chunker.chunk_builder import build_chunk
-from src.modules.ingestion.chunker.spiltter import DynamicSplitter
+from src.modules.ingestion.chunker.spiltter import Splitter
 from src.core.config.loader import load_settings
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class Chunker:
         self.base_chunk_size = base_chunk_size
         self.chunk_overlap = chunk_overlap
         self.min_length = min_length
-        self.dynamic_splitter = DynamicSplitter(
+        self.dynamic_splitter = Splitter(
             chunk_size=self.base_chunk_size, 
             chunk_overlap=self.chunk_overlap
         )
