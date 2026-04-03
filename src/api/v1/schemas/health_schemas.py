@@ -49,6 +49,13 @@ class EmbedderHealthData(BaseModel):
     latency_ms: float | None = None
 
 
+# ---------- Cross Encoder Health ----------
+class CrossEncoderHealthData(BaseModel):
+    healthy: bool
+    model: str | None = None
+    latency_ms: float | None = None
+
+
 # ---------- Responses ----------
 class HealthResponse(BaseModel):
     status: str  # "alive"

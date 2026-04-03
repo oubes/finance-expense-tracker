@@ -7,6 +7,7 @@ from .db_health import check_db
 from .redis_health import check_redis
 from .llm_health import LLMHealth
 from .embedder_health import EmbedderHealth
+from .cross_encoder_health import CrossEncoderHealth
 
 from src.api.v1.schemas.health_schemas import (
     DependencyResult,
@@ -15,6 +16,7 @@ from src.api.v1.schemas.health_schemas import (
     RedisHealthData,
     LLMHealthData,
     EmbedderHealthData,
+    CrossEncoderHealthData
 )
 
 logger = logging.getLogger(__name__)
@@ -135,6 +137,31 @@ async def _check_embedder(dependencies: dict) -> bool:
         return False
 
 
+async def _check_cross_encoder(dependencies: dict) -> bool:
+    try:
+        cross_encoder_health = CrossEncoderHealth()
+        cross_status = await cross_encoder_health.check()
+
+        dependencies["cross_encoder"] = DependencyResult(
+            status="success" if cross_status.healthy else "failed",
+            data=CrossEncoderHealthData(**cross_status.model_dump()).model_dump()
+            if cross_status.healthy
+            else None,
+            error=None if cross_status.healthy else cross_status.detail,
+        )
+
+        logger.info(f"CrossEncoder health check: {cross_status.healthy}")
+        return cross_status.healthy
+
+    except Exception as e:
+        logger.exception("CrossEncoder health check failed")
+        dependencies["cross_encoder"] = DependencyResult(
+            status="failed",
+            error=str(e),
+        )
+        return False
+
+
 # =========================
 # Orchestrator
 # =========================
@@ -150,8 +177,9 @@ async def get_readiness(response: Response):
     redis_ok = await _check_redis(settings, dependencies)
     llm_ok = await _check_llm(dependencies)
     embedder_ok = await _check_embedder(dependencies)
+    cross_encoder_ok = await _check_cross_encoder(dependencies)
 
-    all_ok = app_ok and db_ok and redis_ok and llm_ok and embedder_ok
+    all_ok = app_ok and db_ok and redis_ok and llm_ok and embedder_ok and cross_encoder_ok
 
     response.status_code = (
         status.HTTP_200_OK
