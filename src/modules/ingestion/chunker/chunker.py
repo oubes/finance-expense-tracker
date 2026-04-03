@@ -4,7 +4,7 @@ from src.modules.ingestion.chunker.validator import is_valid_text
 from src.modules.ingestion.chunker.spiltter import DynamicSplitter
 from src.modules.ingestion.chunker.metadata_enricher import enrich_metadata
 from src.modules.ingestion.chunker.chunk_builder import build_chunk
-
+from langchain_core.documents import Document
 logger = logging.getLogger(__name__)
 
 
