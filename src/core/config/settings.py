@@ -53,6 +53,7 @@ class RedisConfig(BaseModel):
     port: int
     db: int
     password: str | None = None
+    full_url: str
 
 
 # ---------- Root Settings ----------
@@ -100,6 +101,16 @@ class AppSettings(BaseSettings):
     redis_port: int = Field(alias="REDIS_PORT")
     redis_db: int = Field(alias="REDIS_DB")
     redis_password: str | None = Field(alias="REDIS_PASSWORD", default=None)
+    @property
+    def redis_full_url(self) -> str:
+        auth_part = f":{self.redis_password}@" if self.redis_password else ""
+
+        return (
+            f"redis://{auth_part}"
+            f"{self.redis_host}:"
+            f"{self.redis_port}/"
+            f"{self.redis_db}"
+        )
 
     # Structured configs (from YAML)
     llm: LLMConfig
@@ -129,4 +140,5 @@ class AppSettings(BaseSettings):
             port=self.redis_port,
             db=self.redis_db,
             password=self.redis_password,
+            full_url=self.redis_full_url,
         )

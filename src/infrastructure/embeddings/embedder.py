@@ -20,5 +20,3 @@ class Embedder:
             input=texts
         )
         return [item.embedding for item in response.data]
-    
-print(Embedder().embed("Hello world!"))

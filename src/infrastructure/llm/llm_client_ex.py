@@ -10,12 +10,11 @@ messages = msg_builder.build(
                     Context:
                     {context}
 
+                    Retrieved Chunks:
+                    {retrieval_chunks}
+                    
                     Question:
                     {question}
-
-                    Instructions:
-                    - Use only the context above
-                    - Do not use external knowledge
                 """.strip(),
     question="What is the capital of France?",
     context="France is a country in Asia.",

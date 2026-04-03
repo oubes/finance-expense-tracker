@@ -18,12 +18,7 @@ async def check_redis(settings: AppSettings, timeout: float = 1.0) -> Dependency
     r_conf = settings.redis
 
     try:
-        client = redis.Redis(
-            host=r_conf.host,
-            port=r_conf.port,
-            db=r_conf.db,
-            password=r_conf.password,
-        )
+        client = redis.from_url(r_conf.full_url, socket_timeout=timeout)
 
         async with asyncio.timeout(timeout):
             pong = await client.ping()
