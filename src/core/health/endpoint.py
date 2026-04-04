@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Response
-from health.aggregator import get_readiness
+from core.health.aggregator import get_readiness
 
 router = APIRouter()
 

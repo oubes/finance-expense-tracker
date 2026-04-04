@@ -8,12 +8,12 @@ from src.bootstrap.dependencies import (
 )
 from src.core.health.schemas.health_schemas import DependencyResult
 
-from health.app_health import get_app_health
-from health.db_health import check_db
-from health.redis_health import check_redis
-from health.llm_health import LLMHealth
-from health.embedder_health import EmbedderHealth
-from health.cross_encoder_health import CrossEncoderHealth
+from core.health.app_health import get_app_health
+from core.health.db_health import check_db
+from core.health.redis_health import check_redis
+from core.health.llm_health import LLMHealth
+from core.health.embedder_health import EmbedderHealth
+from core.health.cross_encoder_health import CrossEncoderHealth
 
 logger = logging.getLogger(__name__)
 
