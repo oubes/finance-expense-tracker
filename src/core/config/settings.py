@@ -44,6 +44,7 @@ class DatabaseConfig(BaseModel):
     user: str
     password: str
     full_url: str
+    type: str
 
 
 class RedisConfig(BaseModel):
@@ -84,6 +85,7 @@ class AppSettings(BaseSettings):
     postgres_db: str = Field(alias="POSTGRES_DB")
     postgres_user: str = Field(alias="POSTGRES_USER")
     postgres_password: str = Field(alias="POSTGRES_PASSWORD")
+    postgres_db_type: str = Field(alias="POSTGRES_DB_TYPE")
     @property
     def postgres_full_url(self) -> str:
         return (
@@ -131,6 +133,7 @@ class AppSettings(BaseSettings):
             user=self.postgres_user,
             password=self.postgres_password,
             full_url=self.postgres_full_url,
+            type=self.postgres_db_type
         )
 
         self.redis = RedisConfig(

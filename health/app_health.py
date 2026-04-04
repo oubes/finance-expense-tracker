@@ -1,41 +1,35 @@
 import time
 import logging
-from pydantic import BaseModel
+from src.api.v1.schemas.health_schemas import DependencyResult, AppHealthData
 
+# Initialize logger
 logger = logging.getLogger(__name__)
 
-
-class AppHealth(BaseModel):
-    status: str
-    uptime_seconds: float
-    started_at: float
-
-
+# Track application start time
 _start_time = time.time()
 
-
-def get_app_health() -> AppHealth:
+async def get_app_health() -> DependencyResult:
+    """
+    Calculate application uptime and status.
+    """
     try:
         uptime = time.time() - _start_time
-
-        result = AppHealth(
+        
+        data = AppHealthData(
             status="running",
             uptime_seconds=uptime,
             started_at=_start_time,
         )
 
-        logger.info(
-            f"App health checked | uptime_seconds={uptime:.3f} | started_at={_start_time}"
+        logger.info("App health check passed")
+        return DependencyResult(
+            status="success",
+            data=data.model_dump(),
         )
-
-        return result
 
     except Exception as e:
         logger.exception("App health check failed")
-
-        # fallback safe response (still valid schema)
-        return AppHealth(
-            status="error",
-            uptime_seconds=0.0,
-            started_at=_start_time,
+        return DependencyResult(
+            status="failed",
+            error=str(e),
         )

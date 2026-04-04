@@ -1,67 +1,53 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from typing import Any
 
 
-# ---------- Dependency Result ----------
+# ---- Generic Wrapper ----
 class DependencyResult(BaseModel):
     status: str  # "success" | "failed"
-    data: dict | None = None
+    data: Any | None = None
     error: str | None = None
 
 
-# ---------- Generic Dependency Status ----------
-class DependencyStatus(BaseModel):
-    healthy: bool
-    detail: str
-    latency_ms: float | None = None
-    model: str | None = None
-
-
-# ---------- App Health ----------
+# ---- App ----
 class AppHealthData(BaseModel):
     status: str
-    uptime_seconds: float = Field(..., ge=0)
+    uptime_seconds: float
     started_at: float
 
 
-# ---------- DB Health ----------
+# ---- DB ----
 class DBHealthData(BaseModel):
     healthy: bool
-    latency_ms: float | None = None
+    latency_ms: float
+    db_type: str | None = None
+    db_name: str | None = None
 
 
-# ---------- Redis Health ----------
+# ---- Redis ----
 class RedisHealthData(BaseModel):
     healthy: bool
-    latency_ms: float | None = None
+    latency_ms: float
 
 
-# ---------- LLM Health ----------
+# ---- LLM ----
 class LLMHealthData(BaseModel):
     healthy: bool
+    latency_ms: float
     model: str | None = None
-    latency_ms: float | None = None
 
 
-# ---------- Embedder Health ----------
+# ---- Embedder ----
 class EmbedderHealthData(BaseModel):
     healthy: bool
+    latency_ms: float
     model: str | None = None
     dimension: int | None = None
-    latency_ms: float | None = None
 
 
-# ---------- Cross Encoder Health ----------
+# ---- Cross Encoder ----
 class CrossEncoderHealthData(BaseModel):
     healthy: bool
+    latency_ms: float
     model: str | None = None
-    latency_ms: float | None = None
-
-
-# ---------- Responses ----------
-class HealthResponse(BaseModel):
-    status: str  # "alive"
-
-
-class ReadinessResponse(BaseModel):
-    status: str  # "ready" | "not_ready"
-    dependencies: dict[str, DependencyResult]
+    device: str | None = None

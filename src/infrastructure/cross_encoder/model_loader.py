@@ -1,11 +1,12 @@
+from fastapi import Depends
 import logging
 from sentence_transformers import CrossEncoder
-import torch
 from src.core.config.loader import load_settings
-
-settings = load_settings()
+import torch
 
 logger = logging.getLogger(__name__)
+
+settings = load_settings()
 
 class ModelLoader:
     def __init__(self):

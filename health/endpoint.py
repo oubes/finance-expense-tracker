@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Response, Request
 from health.aggregator import get_readiness
 
 router = APIRouter()
@@ -10,5 +10,5 @@ def health():
 
 
 @router.get("/ready")
-async def readiness(response: Response):
-    return await get_readiness(response)
+async def readiness(request: Request, response: Response):
+    return await get_readiness(request, response)

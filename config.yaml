@@ -22,6 +22,8 @@ rag:
 # Vector DB
 vector_db:
   enabled: true
+  type: "postgresql"
+  name: "finance_db"
   table: "documents_embeddings"
 
 # Rate Limiting

@@ -4,7 +4,7 @@ from src.infrastructure.cross_encoder.model_loader import ModelLoader
 logger = logging.getLogger(__name__)
 
 
-class CrossEncoder:
+class Encoder:
     def __init__(self, model_loader: ModelLoader | None = None):
         logger.info("Initializing Encoder")
         self.model_loader = model_loader or ModelLoader()
