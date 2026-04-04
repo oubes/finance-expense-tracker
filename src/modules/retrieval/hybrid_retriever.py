@@ -8,9 +8,9 @@ logger = logging.getLogger(__name__)
 
 # Combines BM25 and vector retrieval results
 class HybridRetriever:
-    def __init__(self, db_client, embedding_fn, bm25_query: str, vector_query: str):
-        self.bm25 = BM25Retriever(db_client, bm25_query)
-        self.vector = VectorRetriever(db_client, embedding_fn, vector_query)
+    def __init__(self, bm25: BM25Retriever, vector: VectorRetriever):
+        self.bm25 = bm25
+        self.vector = vector
 
     # Main hybrid search pipeline
     async def search(

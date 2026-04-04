@@ -8,7 +8,7 @@ class Encoder:
     def __init__(self, model_loader: ModelLoader | None = None):
         logger.info("Initializing Encoder")
         self.model_loader = model_loader or ModelLoader()
-        self.model = self.model_loader.get_model()
+        self.model = self.model_loader.get_client()
         logger.info("Encoder initialized successfully")
 
     def score_pair(self, query: str, document: str) -> float:

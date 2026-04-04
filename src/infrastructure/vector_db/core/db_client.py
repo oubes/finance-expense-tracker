@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 import logging
 
 from src.infrastructure.vector_db.core.db_conn import DBConnect
@@ -9,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 class PostgresVectorClient:
 
-    def __init__(self):
-        self.db = DBConnect()
+    def __init__(self, conn: DBConnect):
+        self.db = conn
         self.vector = None
         self.executor = None
 

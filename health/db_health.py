@@ -1,21 +1,18 @@
 import time
 import asyncio
 import logging
-
-from src.core.config.settings import AppSettings
+from src.bootstrap.dependencies import get_settings
 from src.api.v1.schemas.health_schemas import DependencyResult, DBHealthData
 
 logger = logging.getLogger(__name__)
 
 
-async def check_db(db_client, settings: AppSettings, timeout: float = 2.0) -> DependencyResult:
+async def check_db(db_client, timeout: float = 2.0) -> DependencyResult:
     start = time.perf_counter()
-
-    logger.info("Starting DB health check")
+    settings = get_settings()
 
     try:
         async with asyncio.timeout(timeout):
-
             conn = db_client.db.conn
 
             if conn is None:
@@ -30,8 +27,8 @@ async def check_db(db_client, settings: AppSettings, timeout: float = 2.0) -> De
         data = DBHealthData(
             healthy=True,
             latency_ms=latency,
-            db_type=settings.database.type,  # type: ignore
-            db_name=settings.database.db,    # type: ignore
+            db_type=settings.database.type, # type: ignore
+            db_name=settings.database.db, # type: ignore
         )
 
         logger.info(f"DB health check successful | latency: {latency:.2f}ms")

@@ -10,5 +10,5 @@ def health():
 
 
 @router.get("/ready")
-async def readiness(request: Request, response: Response):
-    return await get_readiness(request, response)
+async def readiness(response: Response):
+    return await get_readiness(response)

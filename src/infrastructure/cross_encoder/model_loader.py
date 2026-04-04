@@ -29,8 +29,8 @@ class ModelLoader:
             logger.debug("Model already loaded")
         return self._model
 
-    def get_model(self) -> CrossEncoder:
-        logger.debug("get_model called")
+    def get_client(self) -> CrossEncoder:
+        logger.debug("get_client called")
         return self.load_model()
 
     def get_device(self) -> str:
