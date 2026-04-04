@@ -6,7 +6,7 @@ from src.bootstrap.dependencies import (
     get_db_client,
     get_db_connection,
 )
-from src.api.v1.schemas.health_schemas import DependencyResult
+from src.core.health.schemas.health_schemas import DependencyResult
 
 from health.app_health import get_app_health
 from health.db_health import check_db

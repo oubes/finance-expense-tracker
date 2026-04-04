@@ -1,6 +1,6 @@
 import time
 import logging
-from src.api.v1.schemas.health_schemas import DependencyResult, AppHealthData
+from src.core.health.schemas.health_schemas import DependencyResult, AppHealthData
 
 # Initialize logger
 logger = logging.getLogger(__name__)

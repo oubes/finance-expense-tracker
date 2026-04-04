@@ -2,7 +2,7 @@ import time
 import asyncio
 import logging
 from src.bootstrap.dependencies import get_llm_client
-from src.api.v1.schemas.health_schemas import DependencyResult, LLMHealthData
+from src.core.health.schemas.health_schemas import DependencyResult, LLMHealthData
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@ import time
 import asyncio
 import logging
 from src.bootstrap.dependencies import get_cross_encoder
-from src.api.v1.schemas.health_schemas import DependencyResult, CrossEncoderHealthData
+from src.core.health.schemas.health_schemas import DependencyResult, CrossEncoderHealthData
 
 logger = logging.getLogger(__name__)
 

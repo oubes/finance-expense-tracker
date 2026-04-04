@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Response, Request
+from fastapi import APIRouter, Response
 from health.aggregator import get_readiness
 
 router = APIRouter()

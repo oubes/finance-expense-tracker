@@ -2,7 +2,7 @@ import time
 import logging
 from src.bootstrap.dependencies import get_embedding_model, get_settings
 from src.infrastructure.embeddings.embedder import Embedder
-from src.api.v1.schemas.health_schemas import DependencyResult, EmbedderHealthData
+from src.core.health.schemas.health_schemas import DependencyResult, EmbedderHealthData
 
 logger = logging.getLogger(__name__)
 

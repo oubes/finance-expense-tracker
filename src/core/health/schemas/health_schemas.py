@@ -4,7 +4,7 @@ from typing import Any
 
 # ---- Generic Wrapper ----
 class DependencyResult(BaseModel):
-    status: str  # "success" | "failed"
+    status: str
     data: Any | None = None
     error: str | None = None
 
