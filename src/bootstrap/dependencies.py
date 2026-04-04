@@ -23,33 +23,37 @@ from src.modules.retrieval.vector_retriever import VectorRetriever
 from src.modules.retrieval.hybrid_retriever import HybridRetriever
 from src.modules.retrieval.queries import VECTOR_SEARCH_QUERY, BM25_SEARCH_QUERY
 
+# ---- Ingestion Pipeline ----
+from src.modules.ingestion.chunker.chunker import Chunker
+from src.modules.ingestion.loader.pdf_loader import PDFDocumentLoader
+
 logger = logging.getLogger(__name__)
 
 
-# Core Config
+# ---- Core Config ----
 @lru_cache()
 def get_settings() -> AppSettings:
     logger.info("Loading application settings")
     return load_settings()
 
 
-# LLM
+# ---- LLM ----
 @lru_cache()
 def get_llm_client() -> LLMClient:
     logger.info("Initializing LLM Client")
     return LLMClient()
 
 
-# Models (Singletons)
+# ---- Models (Singletons) ----
 @lru_cache()
-def get_embedding_model():
+def get_embedding_model() -> EmbedModelLoader:
     logger.info("Loading embedding model")
     loader = EmbedModelLoader()
     return loader
 
 
 @lru_cache()
-def get_cross_encoder_model():
+def get_cross_encoder_model() -> CrossEncoderModelLoader:
     logger.info("Loading cross encoder model")
     loader = CrossEncoderModelLoader()
     return loader
@@ -62,7 +66,20 @@ def get_cross_encoder() -> CrossEncoder:
     return CrossEncoder(model_loader=model)
 
 
-# DB Lifecycle (Async)
+# ---- Ingestion Dependencies ----
+@lru_cache()
+def get_chunker() -> Chunker:
+    logger.info("Initializing Chunker")
+    return Chunker()
+
+
+@lru_cache()
+def get_pdf_loader() -> PDFDocumentLoader:
+    logger.info("Initializing PDF Document Loader")
+    return PDFDocumentLoader()
+
+
+# ---- DB Lifecycle (Async) ----
 async def get_db_connection() -> AsyncIterator[DBConnect]:
     logger.info("Creating async DB connection")
     conn = DBConnect()
@@ -84,13 +101,13 @@ async def get_db_connection() -> AsyncIterator[DBConnect]:
                 await result
 
 
-# DB Client (Per Request)
+# ---- DB Client (Per Request) ----
 def get_db_client(conn: DBConnect) -> PostgresVectorClient:
     logger.info("Creating DB client from connection")
     return PostgresVectorClient(conn=conn)
 
 
-# Retrievers (Factory Pattern)
+# ---- Retrievers (Factory Pattern) ----
 def get_bm25_retriever(db_client: PostgresVectorClient) -> BM25Retriever:
     logger.info("Initializing BM25 Retriever")
     return BM25Retriever(
@@ -101,7 +118,7 @@ def get_bm25_retriever(db_client: PostgresVectorClient) -> BM25Retriever:
 
 def get_vector_retriever(
     db_client: PostgresVectorClient,
-    embedding_model,
+    embedding_model: EmbedModelLoader,
 ) -> VectorRetriever:
     logger.info("Initializing Vector Retriever")
 
@@ -124,11 +141,11 @@ def get_hybrid_retriever(
     )
 
 
-# Optional Composition Helpers
+# ---- Optional Composition Helpers ----
 def build_retrievers(
     db_client: PostgresVectorClient,
-    embedding_model,
-):
+    embedding_model: EmbedModelLoader,
+) -> dict[str, BM25Retriever | VectorRetriever | HybridRetriever]:
     bm25 = get_bm25_retriever(db_client)
     vector = get_vector_retriever(db_client, embedding_model)
 
