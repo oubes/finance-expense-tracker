@@ -1,7 +1,7 @@
 import pytest
 from langchain_core.documents import Document
 
-from src.modules.ingestion.chunker.metadata_enricher import (
+from modules.ingestion.chunker.toc_classifier import (
     has_toc_keywords,
     get_dots_density,
     get_page_num_density,

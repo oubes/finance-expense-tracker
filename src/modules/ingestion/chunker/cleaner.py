@@ -1,39 +1,44 @@
+# ---- Standard Library ----
 import re
 import unicodedata
 
 
-def normalize_text(text: str, *, lowercase: bool = True, remove_accents: bool = False) -> str:
-    text = unicodedata.normalize("NFKC", text)
+class TextCleaner:
+    # ---- Normalize Text ----
+    def normalize_text(self, text: str, *, lowercase: bool = True, remove_accents: bool = False) -> str:
+        text = unicodedata.normalize("NFKC", text)
 
-    if remove_accents:
-        text = unicodedata.normalize("NFKD", text)
-        text = "".join(c for c in text if not unicodedata.combining(c))
+        if remove_accents:
+            text = self._strip_accents(text)
 
-    if lowercase:
-        text = text.lower()
+        if lowercase:
+            text = text.lower()
 
-    return text
+        return text
+    
+    # ---- Strip Accents ----
+    def _strip_accents(self, text: str) -> str:
+        normalized = unicodedata.normalize("NFKD", text)
+        return "".join(c for c in normalized if not unicodedata.combining(c))
 
-def normalize_whitespace(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
+    # ---- Normalize Whitespace ----
+    def normalize_whitespace(self, text: str) -> str:
+        return re.sub(r"\s+", " ", text).strip()
 
-def replace_ampersand(text: str) -> str:
-    # Replace standalone & with "and"
-    return re.sub(r"\s*&\s*", " and ", text)
+    # ---- Replace Ampersand ----
+    def replace_ampersand(self, text: str) -> str:
+        return re.sub(r"\s*&\s*", " and ", text)
 
+    # ---- Remove Special Characters ----
+    def remove_special_chars(self, text: str) -> str:
+        return re.sub(r"[^\w\s.,;:!?()\-@$%]", "", text)
 
-def remove_special_chars(text: str) -> str:
-    return re.sub(r"[^\w\s.,;:!?()\-@$%]", "", text)
+    # ---- Clean Text Pipeline ----
+    def clean_text(self, text: str, *, lowercase: bool = True, remove_accents: bool = False) -> str:
+        text = self.normalize_text(text, lowercase=lowercase, remove_accents=remove_accents)
+        text = self.normalize_whitespace(text)
+        text = self.replace_ampersand(text)
+        text = self.remove_special_chars(text)
+        text = self.normalize_whitespace(text)
 
-
-def clean_text(text: str, *, lowercase: bool = True, remove_accents: bool = False) -> str:
-    text = normalize_text(text, lowercase=lowercase, remove_accents=remove_accents)
-
-    text = normalize_whitespace(text)
-    text = replace_ampersand(text)
-
-    text = remove_special_chars(text)
-
-    text = normalize_whitespace(text)
-
-    return text
+        return text

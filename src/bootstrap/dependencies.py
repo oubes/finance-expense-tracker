@@ -24,8 +24,13 @@ from src.modules.retrieval.hybrid_retriever import HybridRetriever
 from src.modules.retrieval.queries import VECTOR_SEARCH_QUERY, BM25_SEARCH_QUERY
 
 # ---- Ingestion Pipeline ----
-from src.modules.ingestion.chunker.chunker import Chunker
+from src.modules.ingestion.chunker.cleaner import TextCleaner
+from src.modules.ingestion.chunker.spiltter import Splitter
+from src.modules.ingestion.chunker.toc_classifier import TOCClassifier
+from src.modules.ingestion.chunker.validator import TextValidator
 from src.modules.ingestion.loader.pdf_loader import PDFDocumentLoader
+from src.modules.ingestion.chunker.scoring import ChunkScorer
+from src.modules.ingestion.chunker.chunker import Chunker
 
 logger = logging.getLogger(__name__)
 
@@ -68,15 +73,47 @@ def get_cross_encoder() -> CrossEncoder:
 
 # ---- Ingestion Dependencies ----
 @lru_cache()
-def get_chunker() -> Chunker:
-    logger.info("Initializing Chunker")
-    return Chunker()
+def get_chunker_cleaner() -> TextCleaner:
+    logger.info("Initializing Text Cleaner")
+    return TextCleaner()
 
+@lru_cache()
+def get_chunker_Splitter() -> Splitter:
+    logger.info("Initializing Text Splitter")
+    return Splitter(get_settings())
+
+@lru_cache()
+def get_chunker_toc_classifier() -> TOCClassifier:
+    logger.info("Initializing TOC Classifier")
+    return TOCClassifier()
+
+@lru_cache()
+def get_chunker_validator() -> TextValidator:
+    logger.info("Initializing Text Validator")
+    return TextValidator()
 
 @lru_cache()
 def get_pdf_loader() -> PDFDocumentLoader:
     logger.info("Initializing PDF Document Loader")
     return PDFDocumentLoader()
+
+@lru_cache()
+def get_chunk_scorer() -> ChunkScorer:
+    logger.info("Initializing Chunk Scorer")
+    return ChunkScorer(settings=get_settings())
+
+@lru_cache()
+def get_chunker() -> Chunker:
+    logger.info("Initializing Chunker")
+    return Chunker(
+        config=get_settings(),
+        cleaner=get_chunker_cleaner(),
+        validator=get_chunker_validator(),
+        toc_classifier=get_chunker_toc_classifier(),
+        splitter=get_chunker_Splitter(),
+        scorer=get_chunk_scorer(),
+
+    )
 
 
 # ---- DB Lifecycle (Async) ----

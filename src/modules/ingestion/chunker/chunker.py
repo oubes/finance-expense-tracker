@@ -1,77 +1,136 @@
+# ---- Standard Library ----
 import logging
-import re
+from typing import Any
 
+# ---- External ----
 from langchain_core.documents import Document
-from src.modules.ingestion.chunker.cleaner import clean_text
-from src.modules.ingestion.chunker.validator import is_valid_text
-from src.modules.ingestion.chunker.metadata_enricher import enrich_metadata
-from src.modules.ingestion.chunker.chunk_builder import build_chunk
+
+# ---- Internal ----
+from src.modules.ingestion.chunker.cleaner import TextCleaner
+from src.modules.ingestion.chunker.validator import TextValidator
+from src.modules.ingestion.chunker.toc_classifier import TOCClassifier
 from src.modules.ingestion.chunker.spiltter import Splitter
-from src.core.config.loader import load_settings
+from src.modules.ingestion.chunker.scoring import ChunkScorer
 
 logger = logging.getLogger(__name__)
 
-settings = load_settings()
-
 
 class Chunker:
+    # ---- Initialization ----
     def __init__(
         self,
-        base_chunk_size: int = settings.rag.chunk_size,
-        chunk_overlap: int = settings.rag.chunk_overlap,
-        min_length: int = 30,
+        config: Any,
+        cleaner: TextCleaner,
+        validator: TextValidator,
+        toc_classifier: TOCClassifier,
+        splitter: Splitter,
+        scorer: ChunkScorer,
     ):
-        # Initialize chunking parameters and the dynamic splitting engine
-        self.base_chunk_size = base_chunk_size
-        self.chunk_overlap = chunk_overlap
-        self.min_length = min_length
-        self.dynamic_splitter = Splitter(
-            chunk_size=self.base_chunk_size, 
-            chunk_overlap=self.chunk_overlap
-        )
+        self.cleaner = cleaner
+        self.validator = validator
+        self.toc_classifier = toc_classifier
+        self.scorer = scorer
 
-    def chunk_documents(
-        self,
-        documents: list[Document],
-        doc_name: str,
-    ) -> list[dict]:
-        # Process documents into validated chunks using size-adaptive recursive splitting
+        self.base_chunk_size = config.base_chunk_size
+        self.chunk_overlap = config.chunk_overlap
+        self.min_length = getattr(config, "min_length", 30)
+
+        self.splitter = splitter
+
+    # ---- Public API ----
+    def chunk_documents(self, documents: list[Document], doc_name: str) -> list[dict]:
         if not documents:
             logger.warning("No documents provided.")
             return []
 
-        try:
-            chunks: list[dict] = []
-            chunk_counter = 0
+        chunks: list[dict] = []
+        chunk_counter = 0
 
-            for doc in documents:
-                cleaned_raw = clean_text(doc.page_content)
+        for doc in documents:
+            try:
+                cleaned_raw = self._clean_text(doc.page_content)
 
-                if not is_valid_text(cleaned_raw, self.min_length):
+                if not self._is_valid_text(cleaned_raw):
                     continue
 
-                meta = enrich_metadata(doc)
-                splitter = self.dynamic_splitter.get_splitter(cleaned_raw)
-                split_parts = splitter.split_text(cleaned_raw)
+                meta = self._enrich_metadata(doc)
+
+                split_parts = self._split_text(cleaned_raw)
+                if not split_parts:
+                    continue
 
                 for part in split_parts:
-                    if not is_valid_text(part, self.min_length):
+                    if not self._is_valid_text(part):
                         continue
 
-                    chunk = build_chunk(
+                    score = self._compute_score(part, cleaned_raw)
+
+                    chunk = self._build_chunk(
                         content=part,
                         doc_name=doc_name,
                         meta=meta,
                         chunk_index=chunk_counter,
                         raw_content=part,
+                        score=score,
                     )
 
                     chunks.append(chunk)
                     chunk_counter += 1
 
-            logger.info(f"[Chunker] Generated {len(chunks)} adaptive chunks")
-            return chunks
+            except Exception:
+                logger.exception("Failed processing document")
+                continue
 
+        logger.info(f"[Chunker] Generated {len(chunks)} adaptive chunks")
+        return chunks
+
+    # ---- Text Cleaning ----
+    def _clean_text(self, text: str) -> str:
+        try:
+            return self.cleaner.clean_text(text)
         except Exception:
-            logger.exception("chunk_documents failed")
-            raise
+            logger.exception("Text cleaning failed")
+            return ""
+
+    # ---- Validation ----
+    def _is_valid_text(self, text: str) -> bool:
+        try:
+            return self.validator.is_valid_text(text, self.min_length)
+        except Exception:
+            logger.exception("Text validation failed")
+            return False
+
+    # ---- Metadata Enrichment ----
+    def _enrich_metadata(self, doc: Document) -> dict:
+        try:
+            return self.toc_classifier.enrich_metadata(doc)
+        except Exception:
+            logger.exception("Metadata enrichment failed")
+            return doc.metadata.copy()
+
+    # ---- Splitting ----
+    def _split_text(self, text: str) -> list[str]:
+        try:
+            return self.splitter.split(text)
+        except Exception:
+            logger.exception("Text splitting failed")
+            return []
+
+    # ---- Scoring ----
+    def _compute_score(self, text: str, raw_text: str) -> float:
+        try:
+            return self.scorer.score(text, raw_text)
+        except Exception:
+            logger.exception("Scoring failed")
+            return 0.0
+
+    # ---- Chunk Builder ----
+    def _build_chunk(self, content: str, doc_name: str, meta: dict, chunk_index: int, raw_content: str, score: float) -> dict:
+        return {
+            "content": content,
+            "doc_name": doc_name,
+            "metadata": meta,
+            "chunk_index": chunk_index,
+            "raw_content": raw_content,
+            "score": score,
+        }
