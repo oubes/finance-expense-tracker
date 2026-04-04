@@ -78,7 +78,7 @@ def get_chunker_cleaner() -> TextCleaner:
     return TextCleaner()
 
 @lru_cache()
-def get_chunker_Splitter() -> Splitter:
+def get_chunker_splitter() -> Splitter:
     logger.info("Initializing Text Splitter")
     return Splitter(get_settings())
 
@@ -110,7 +110,7 @@ def get_chunker() -> Chunker:
         cleaner=get_chunker_cleaner(),
         validator=get_chunker_validator(),
         toc_classifier=get_chunker_toc_classifier(),
-        splitter=get_chunker_Splitter(),
+        splitter=get_chunker_splitter(),
         scorer=get_chunk_scorer(),
 
     )

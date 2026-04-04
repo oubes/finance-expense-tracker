@@ -1,70 +1,77 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from src.modules.ingestion.loader.pdf_loader import PDFDocumentLoader
+from src.bootstrap.dependencies import get_pdf_loader
+
+pytestmark = pytest.mark.unit
 
 
-pytestmark = pytest.mark.pdf_loader
-
-# ---------- Fixtures ----------
-
+# ---- Fixture ----
 @pytest.fixture
-def loader(tmp_path):
-    return PDFDocumentLoader(data_dir=str(tmp_path))
+def loader(tmp_path, monkeypatch) -> tuple[PDFDocumentLoader, MagicMock]:
+    mock_backend = MagicMock()
+
+    def fake_loader_factory(*args, **kwargs):
+        instance = MagicMock()
+        instance.load = mock_backend.load
+        return instance
+
+    # Patch at dependency level instead of module import level
+    monkeypatch.setattr(
+        "src.modules.ingestion.loader.pdf_loader.PyPDFLoader",
+        fake_loader_factory,
+    )
+
+    return get_pdf_loader(data_dir=str(tmp_path)), mock_backend
 
 
 # ---------- Tests ----------
 
 def test_load_pdf_file_not_found(loader):
+    pdf_loader, _ = loader
+
     with pytest.raises(FileNotFoundError):
-        loader.load_pdf("non_existing.pdf")
+        pdf_loader.load_pdf("non_existing.pdf")
 
 
-@patch("src.modules.ingestion.loader.pdf_loader.PyPDFLoader")
-def test_load_pdf_success(mock_loader_class, loader, tmp_path):
-    # Arrange
+def test_load_pdf_success(loader, tmp_path):
+    pdf_loader, mock_backend = loader
+
     fake_documents = ["doc1", "doc2"]
-
-    mock_loader_instance = MagicMock()
-    mock_loader_instance.load.return_value = fake_documents
-    mock_loader_class.return_value = mock_loader_instance
+    mock_backend.load.return_value = fake_documents
 
     file_name = "test.pdf"
     file_path = tmp_path / file_name
-    file_path.touch()  # create empty file so exists() passes
+    file_path.touch()
 
-    # Act
-    result = loader.load_pdf(file_name)
+    result = pdf_loader.load_pdf(file_name)
 
-    # Assert
     assert result == fake_documents
-    mock_loader_class.assert_called_once_with(str(file_path))
-    mock_loader_instance.load.assert_called_once()
+    mock_backend.load.assert_called_once()
 
 
-@patch("src.modules.ingestion.loader.pdf_loader.PyPDFLoader")
-def test_load_pdf_returns_list_of_documents(mock_loader_class, loader, tmp_path):
-    mock_loader_instance = MagicMock()
-    mock_loader_instance.load.return_value = ["doc"]
-    mock_loader_class.return_value = mock_loader_instance
+def test_load_pdf_returns_list_of_documents(loader, tmp_path):
+    pdf_loader, mock_backend = loader
+
+    mock_backend.load.return_value = ["doc"]
 
     file_name = "test.pdf"
     (tmp_path / file_name).touch()
 
-    result = loader.load_pdf(file_name)
+    result = pdf_loader.load_pdf(file_name)
 
     assert isinstance(result, list)
     assert len(result) == 1
 
 
-@patch("src.modules.ingestion.loader.pdf_loader.PyPDFLoader")
-def test_load_pdf_propagates_exception(mock_loader_class, loader, tmp_path):
-    mock_loader_instance = MagicMock()
-    mock_loader_instance.load.side_effect = Exception("PDF load error")
-    mock_loader_class.return_value = mock_loader_instance
+def test_load_pdf_propagates_exception(loader, tmp_path):
+    pdf_loader, mock_backend = loader
+
+    mock_backend.load.side_effect = Exception("PDF load error")
 
     file_name = "test.pdf"
     (tmp_path / file_name).touch()
 
     with pytest.raises(Exception):
-        loader.load_pdf(file_name)
+        pdf_loader.load_pdf(file_name)

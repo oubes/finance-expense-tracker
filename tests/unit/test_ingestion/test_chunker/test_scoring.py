@@ -1,25 +1,21 @@
 import pytest
 
-from src.modules.ingestion.chunker.scoring import (
-    score_chunk,
-    _tokenize,
-    _compute_length_score,
-    _compute_sentence_count,
-    _compute_sentence_score,
-    _compute_repetition_ratio,
-    _compute_alpha_ratio,
-    _compute_domain_vocab_ratio,
-    _combine_scores,
-    _squash,
-)
+from src.bootstrap.dependencies import get_chunk_scorer
 
-pytestmark = pytest.mark.chunk_scoring
+pytestmark = pytest.mark.unit
+
+
+# ---- Fixture ----
+@pytest.fixture
+def scorer():
+    return get_chunk_scorer()
+
 
 # ---------------- tokenize ----------------
 
-def test_tokenize_basic():
+def test_tokenize_basic(scorer):
     text = "Hello world 123!"
-    tokens = _tokenize(text)
+    tokens = scorer.tokenize(text)
 
     assert "hello" in tokens
     assert "world" in tokens
@@ -28,118 +24,118 @@ def test_tokenize_basic():
 
 # ---------------- length score ----------------
 
-def test_length_score_bounds():
+def test_length_score_bounds(scorer):
     text = "a" * 1000
-    score = _compute_length_score(text)
+    score = scorer.compute_length_score(text)
 
     assert 0.0 <= score <= 1.0
 
 
 # ---------------- sentence count ----------------
 
-def test_sentence_count_basic():
+def test_sentence_count_basic(scorer):
     text = "Hello. World! Test?"
-    count = _compute_sentence_count(text)
+    count = scorer.compute_sentence_count(text)
 
     assert count == 3
 
 
-def test_sentence_count_empty():
-    assert _compute_sentence_count("") == 0
+def test_sentence_count_empty(scorer):
+    assert scorer.compute_sentence_count("") == 0
 
 
 # ---------------- sentence score ----------------
 
-def test_sentence_score_normalization():
-    score = _compute_sentence_score(5)
+def test_sentence_score_normalization(scorer):
+    score = scorer.compute_sentence_score(5)
 
     assert 0.0 <= score <= 1.0
 
 
 # ---------------- repetition ratio ----------------
 
-def test_repetition_ratio_all_unique():
+def test_repetition_ratio_all_unique(scorer):
     words = ["a", "b", "c"]
-    ratio = _compute_repetition_ratio(len(words), len(set(words)))
+    ratio = scorer.compute_repetition_ratio(len(words), len(set(words)))
 
     assert ratio == 0.0
 
 
-def test_repetition_ratio_with_duplicates():
+def test_repetition_ratio_with_duplicates(scorer):
     words = ["a", "a", "b"]
-    ratio = _compute_repetition_ratio(len(words), len(set(words)))
+    ratio = scorer.compute_repetition_ratio(len(words), len(set(words)))
 
     assert ratio > 0
 
 
 # ---------------- alpha ratio ----------------
 
-def test_alpha_ratio():
+def test_alpha_ratio(scorer):
     text = "abc123!!!"
-    ratio = _compute_alpha_ratio(text)
+    ratio = scorer.compute_alpha_ratio(text)
 
     assert 0.0 < ratio < 1.0
 
 
-def test_alpha_ratio_empty():
-    assert _compute_alpha_ratio("") == 0.0
+def test_alpha_ratio_empty(scorer):
+    assert scorer.compute_alpha_ratio("") == 0.0
 
 
 # ---------------- domain vocab ratio ----------------
 
-def test_domain_vocab_ratio_basic():
+def test_domain_vocab_ratio_basic(scorer):
     words = ["income", "expense", "random"]
-    ratio = _compute_domain_vocab_ratio(words)
+    ratio = scorer.compute_domain_vocab_ratio(words)
 
     assert 0.0 < ratio < 1.0
 
 
 # ---------------- combine scores ----------------
 
-def test_combine_scores():
-    result = _combine_scores(0.5, 0.5)
+def test_combine_scores(scorer):
+    result = scorer.combine_scores(0.5, 0.5)
 
     assert 0.0 <= result <= 1.0
 
 
 # ---------------- squash (sigmoid) ----------------
 
-def test_squash_bounds():
-    val = _squash(0.5)
+def test_squash_bounds(scorer):
+    val = scorer.squash(0.5)
 
     assert 0.0 < val < 1.0
 
 
 # ---------------- score_chunk ----------------
 
-def test_score_chunk_simple_text():
+def test_score_chunk_simple_text(scorer):
     text = "This is a simple sentence."
 
-    score = score_chunk(text)
+    score = scorer.score_chunk(text)
 
     assert 0.0 <= score <= 1.0
 
 
-def test_score_chunk_finance_domain_boost():
+def test_score_chunk_finance_domain_boost(scorer):
     text = "income investment budget money financial assets"
 
-    score = score_chunk(text)
+    score = scorer.score_chunk(text)
 
     assert 0.0 <= score <= 1.0
 
 
-def test_score_chunk_repetition_penalty():
+def test_score_chunk_repetition_penalty(scorer):
     text = "word word word word word"
 
-    score = score_chunk(text)
+    score = scorer.score_chunk(text)
 
     assert 0.0 <= score <= 1.0
 
 
-def test_score_chunk_with_raw_text():
+def test_score_chunk_with_raw_text(scorer):
     text = "short"
     raw_text = "This is a longer raw text. It has multiple sentences. And structure."
 
-    score = score_chunk(text, raw_text=raw_text)
+    score = scorer.score_chunk(text, raw_text=raw_text)
 
     assert 0.0 <= score <= 1.0

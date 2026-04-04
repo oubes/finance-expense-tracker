@@ -1,16 +1,15 @@
 import pytest
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from src.modules.ingestion.chunker.spiltter import Splitter
+from src.bootstrap.dependencies import get_chunker_splitter
+
+pytestmark = pytest.mark.unit
 
 
-pytestmark = pytest.mark.chunk_splitter
-
-# ---------- Fixtures ----------
-
+# ---- Fixture ----
 @pytest.fixture
 def splitter():
-    return Splitter(chunk_size=100, chunk_overlap=20)
+    return get_chunker_splitter()
 
 
 @pytest.fixture
@@ -21,7 +20,7 @@ def sample_text():
 # ---------- Tests ----------
 
 def test_splitter_initialization():
-    s = Splitter(chunk_size=200, chunk_overlap=50)
+    s = get_chunker_splitter(chunk_size=200, chunk_overlap=50)
 
     assert s.chunk_size == 200
     assert s.chunk_overlap == 50
@@ -63,9 +62,10 @@ def test_chunk_size_respected(splitter):
 
 
 def test_overlap_effect(splitter):
-    text_splitter = splitter.get_splitter("a " * 500)
+    text = "a " * 500
+    text_splitter = splitter.get_splitter(text)
 
-    chunks = text_splitter.split_text("a " * 500)
+    chunks = text_splitter.split_text(text)
 
     if len(chunks) > 1:
         assert len(set(chunks[0]).intersection(set(chunks[1]))) > 0
