@@ -13,6 +13,7 @@ class DependencyStatus(BaseModel):
     healthy: bool
     detail: str
     latency_ms: float | None = None
+    model: str | None = None
 
 
 # ---------- App Health ----------

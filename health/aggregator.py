@@ -96,7 +96,9 @@ async def _check_llm(dependencies: dict) -> bool:
 
         dependencies["llm"] = DependencyResult(
             status="success" if llm_status.healthy else "failed",
-            data=LLMHealthData(**llm_status.model_dump()).model_dump() if llm_status.healthy else None,
+            data=LLMHealthData(**llm_status.model_dump()).model_dump()
+            if llm_status.healthy
+            else None,
             error=None if llm_status.healthy else llm_status.detail,
         )
 
