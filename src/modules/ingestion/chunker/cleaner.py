@@ -5,7 +5,13 @@ import unicodedata
 
 class TextCleaner:
     # ---- Normalize Text ----
-    def normalize_text(self, text: str, *, lowercase: bool = True, remove_accents: bool = False) -> str:
+    def normalize_text(
+        self,
+        text: str,
+        *,
+        lowercase: bool = True,
+        remove_accents: bool = True
+    ) -> str:
         text = unicodedata.normalize("NFKC", text)
 
         if remove_accents:
@@ -15,7 +21,7 @@ class TextCleaner:
             text = text.lower()
 
         return text
-    
+
     # ---- Strip Accents ----
     def _strip_accents(self, text: str) -> str:
         normalized = unicodedata.normalize("NFKD", text)
@@ -34,8 +40,19 @@ class TextCleaner:
         return re.sub(r"[^\w\s.,;:!?()\-@$%]", "", text)
 
     # ---- Clean Text Pipeline ----
-    def clean_text(self, text: str, *, lowercase: bool = True, remove_accents: bool = False) -> str:
-        text = self.normalize_text(text, lowercase=lowercase, remove_accents=remove_accents)
+    def clean_text(
+        self,
+        text: str,
+        *,
+        lowercase: bool = True,
+        remove_accents: bool = True
+    ) -> str:
+        text = self.normalize_text(
+            text,
+            lowercase=lowercase,
+            remove_accents=remove_accents
+        )
+
         text = self.normalize_whitespace(text)
         text = self.replace_ampersand(text)
         text = self.remove_special_chars(text)

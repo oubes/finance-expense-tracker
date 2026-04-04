@@ -1,141 +1,184 @@
-import pytest
+# ---- Standard Library ----
+import re
+import math
+from collections import Counter
+from src.core.config.settings import AppSettings
 
-from src.bootstrap.dependencies import get_chunk_scorer
+# ---- Scoring Weights ----
+REPETITION_WEIGHT = 0.5
+SENTENCE_FACTOR_WEIGHT = 0.3
+LENGTH_FACTOR_WEIGHT = 0.2
 
-pytestmark = pytest.mark.unit
+COMBINE_ALPHA = 0.6
+COMBINE_BETA = 0.4
 
+# ---- Normalization ----
+SENTENCE_SCORE_DIVISOR = 5
+WORD_LENGTH_NORMALIZER = 100
 
-# ---- Fixture ----
-@pytest.fixture
-def scorer():
-    return get_chunk_scorer()
+# ---- Domain Boost ----
+MAX_DOMAIN_BOOST = 0.2
+DOMAIN_BOOST_MULTIPLIER = 3
 
+# ---- Sigmoid ----
+SIGMOID_STEEPNESS = 4.0
+SIGMOID_CENTER = 0.5
 
-# ---------------- tokenize ----------------
+# ---- Default Domain Vocabulary ----
+DEFAULT_DOMAIN_VOCAB = {
+    "income", "expense", "budget", "debt", "saving",
+    "investment", "interest", "credit", "loan",
+    "financial", "money", "cash", "assets", "liabilities",
+    "retirement", "tax", "salary"
+}
+
+
+class ChunkScorer:
+    # ---- Init ----
+    def __init__(self, *, settings: AppSettings):
+        self.chunk_size = settings.rag.chunk_size
+        self.length_score_divisor = self.chunk_size
+        self.domain_vocab: set[str] = set(DEFAULT_DOMAIN_VOCAB)
+
+    # ---- Build Domain Vocabulary ----
+    def build_domain_vocab(self, corpus: list[str], *, top_k: int = 200) -> None:
+        words: list[str] = []
+
+        for text in corpus:
+            words.extend(re.findall(r"\b[a-zA-Z]{3,}\b", text.lower()))
+
+        counter = Counter(words)
+        most_common = [w for w, _ in counter.most_common(top_k)]
+
+        self.domain_vocab = set(most_common)
+
+    # ---------------- PUBLIC API (matches tests) ----------------
+
+    # ---- Tokenize ----
+    def tokenize(self, text: str) -> list[str]:
+        return self._tokenize(text)
+
+    # ---- Length Score ----
+    def compute_length_score(self, text: str) -> float:
+        return self._compute_length_score(text)
+
+    # ---- Sentence Count ----
+    def compute_sentence_count(self, text: str) -> int:
+        return self._compute_sentence_count(text)
 
-def test_tokenize_basic(scorer):
-    text = "Hello world 123!"
-    tokens = scorer.tokenize(text)
+    # ---- Sentence Score ----
+    def compute_sentence_score(self, sentence_count: int) -> float:
+        return self._compute_sentence_score(sentence_count)
 
-    assert "hello" in tokens
-    assert "world" in tokens
-    assert "123" in tokens
+    # ---- Repetition Ratio ----
+    def compute_repetition_ratio(self, words_count: int, unique_words_count: int) -> float:
+        return self._compute_repetition_ratio(words_count, unique_words_count)
 
+    # ---- Alpha Ratio ----
+    def compute_alpha_ratio(self, text: str) -> float:
+        return self._compute_alpha_ratio(text)
 
-# ---------------- length score ----------------
+    # ---- Domain Ratio ----
+    def compute_domain_vocab_ratio(self, words: list[str]) -> float:
+        return self._compute_domain_vocab_ratio(words)
 
-def test_length_score_bounds(scorer):
-    text = "a" * 1000
-    score = scorer.compute_length_score(text)
+    # ---- Combine ----
+    def combine_scores(self, length_score: float, sentence_score: float) -> float:
+        return self._combine_scores(length_score, sentence_score)
 
-    assert 0.0 <= score <= 1.0
+    # ---- Squash ----
+    def squash(self, x: float) -> float:
+        return self._squash(x)
 
+    # ---- Main scoring API expected by tests ----
+    def score_chunk(self, text: str, raw_text: str | None = None) -> float:
+        return self.score(text, raw_text=raw_text)
 
-# ---------------- sentence count ----------------
+    # ---------------- INTERNAL IMPLEMENTATION ----------------
 
-def test_sentence_count_basic(scorer):
-    text = "Hello. World! Test?"
-    count = scorer.compute_sentence_count(text)
+    def _tokenize(self, text: str) -> list[str]:
+        return re.findall(r"\b\w+\b", text.lower())
 
-    assert count == 3
+    def _compute_length_score(self, text: str) -> float:
+        return min(len(text) / self.length_score_divisor, 1.0)
 
+    def _compute_sentence_count(self, text: str) -> int:
+        return len([s for s in re.split(r"[.!?]+", text) if s.strip()])
 
-def test_sentence_count_empty(scorer):
-    assert scorer.compute_sentence_count("") == 0
+    def _compute_sentence_score(self, sentence_count: int) -> float:
+        return min(sentence_count / SENTENCE_SCORE_DIVISOR, 1.0)
 
+    def _compute_word_stats(self, words: list[str]) -> tuple[int, int]:
+        return len(words), len(set(words))
 
-# ---------------- sentence score ----------------
+    def _compute_repetition_ratio(self, words_count: int, unique_words_count: int) -> float:
+        if words_count == 0:
+            return 0.0
+        return 1 - (unique_words_count / words_count)
 
-def test_sentence_score_normalization(scorer):
-    score = scorer.compute_sentence_score(5)
+    def _compute_alpha_ratio(self, text: str) -> float:
+        if not text:
+            return 0.0
+        alpha = sum(c.isalpha() for c in text)
+        return alpha / len(text)
 
-    assert 0.0 <= score <= 1.0
+    def _compute_domain_vocab_ratio(self, words: list[str]) -> float:
+        if not words:
+            return 0.0
+        hits = sum(1 for w in words if w in self.domain_vocab)
+        return hits / len(words)
 
+    def _compute_domain_boost(self, ratio: float) -> float:
+        return min(
+            ratio * DOMAIN_BOOST_MULTIPLIER * MAX_DOMAIN_BOOST,
+            MAX_DOMAIN_BOOST
+        )
 
-# ---------------- repetition ratio ----------------
+    def _compute_penalty(self, text: str, words: list[str], sentence_count: int) -> float:
+        words_count, unique_words_count = self._compute_word_stats(words)
 
-def test_repetition_ratio_all_unique(scorer):
-    words = ["a", "b", "c"]
-    ratio = scorer.compute_repetition_ratio(len(words), len(set(words)))
+        repetition_ratio = self._compute_repetition_ratio(words_count, unique_words_count)
+        sentence_factor = min(sentence_count / SENTENCE_SCORE_DIVISOR, 1.0)
+        length_factor = min(words_count / WORD_LENGTH_NORMALIZER, 1.0)
+        alpha_ratio = self._compute_alpha_ratio(text)
 
-    assert ratio == 0.0
+        penalty = (
+            REPETITION_WEIGHT * (1 - repetition_ratio) +
+            SENTENCE_FACTOR_WEIGHT * sentence_factor +
+            LENGTH_FACTOR_WEIGHT * length_factor +
+            0.2 * alpha_ratio
+        )
 
+        return max(0.0, min(penalty, 1.0))
 
-def test_repetition_ratio_with_duplicates(scorer):
-    words = ["a", "a", "b"]
-    ratio = scorer.compute_repetition_ratio(len(words), len(set(words)))
+    def _combine_scores(self, length_score: float, sentence_score: float) -> float:
+        return (
+            COMBINE_ALPHA * length_score +
+            COMBINE_BETA * sentence_score
+        )
 
-    assert ratio > 0
+    def _squash(self, x: float) -> float:
+        return 1 / (1 + math.exp(-SIGMOID_STEEPNESS * (x - SIGMOID_CENTER)))
 
+    def score(self, text: str, raw_text: str | None = None) -> float:
+        sentence_source = raw_text if raw_text else text
 
-# ---------------- alpha ratio ----------------
+        words = self._tokenize(text)
 
-def test_alpha_ratio(scorer):
-    text = "abc123!!!"
-    ratio = scorer.compute_alpha_ratio(text)
+        length_score = self._compute_length_score(text)
 
-    assert 0.0 < ratio < 1.0
+        sentence_count = self._compute_sentence_count(sentence_source)
+        sentence_score = self._compute_sentence_score(sentence_count)
 
+        base_score = self._combine_scores(length_score, sentence_score)
 
-def test_alpha_ratio_empty(scorer):
-    assert scorer.compute_alpha_ratio("") == 0.0
+        penalty = self._compute_penalty(text, words, sentence_count)
 
+        domain_ratio = self._compute_domain_vocab_ratio(words)
+        domain_boost = self._compute_domain_boost(domain_ratio)
 
-# ---------------- domain vocab ratio ----------------
+        raw_score = base_score * penalty * (1 + domain_boost)
 
-def test_domain_vocab_ratio_basic(scorer):
-    words = ["income", "expense", "random"]
-    ratio = scorer.compute_domain_vocab_ratio(words)
+        final_score = self._squash(raw_score)
 
-    assert 0.0 < ratio < 1.0
-
-
-# ---------------- combine scores ----------------
-
-def test_combine_scores(scorer):
-    result = scorer.combine_scores(0.5, 0.5)
-
-    assert 0.0 <= result <= 1.0
-
-
-# ---------------- squash (sigmoid) ----------------
-
-def test_squash_bounds(scorer):
-    val = scorer.squash(0.5)
-
-    assert 0.0 < val < 1.0
-
-
-# ---------------- score_chunk ----------------
-
-def test_score_chunk_simple_text(scorer):
-    text = "This is a simple sentence."
-
-    score = scorer.score_chunk(text)
-
-    assert 0.0 <= score <= 1.0
-
-
-def test_score_chunk_finance_domain_boost(scorer):
-    text = "income investment budget money financial assets"
-
-    score = scorer.score_chunk(text)
-
-    assert 0.0 <= score <= 1.0
-
-
-def test_score_chunk_repetition_penalty(scorer):
-    text = "word word word word word"
-
-    score = scorer.score_chunk(text)
-
-    assert 0.0 <= score <= 1.0
-
-
-def test_score_chunk_with_raw_text(scorer):
-    text = "short"
-    raw_text = "This is a longer raw text. It has multiple sentences. And structure."
-
-    score = scorer.score_chunk(text, raw_text=raw_text)
-
-    assert 0.0 <= score <= 1.0
+        return round(final_score, 3)

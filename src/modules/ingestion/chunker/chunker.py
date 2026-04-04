@@ -31,8 +31,8 @@ class Chunker:
         self.toc_classifier = toc_classifier
         self.scorer = scorer
 
-        self.base_chunk_size = config.base_chunk_size
-        self.chunk_overlap = config.chunk_overlap
+        self.base_chunk_size = config.rag.chunk_size
+        self.chunk_overlap = config.rag.chunk_overlap
         self.min_length = getattr(config, "min_length", 30)
 
         self.splitter = splitter

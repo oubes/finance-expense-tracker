@@ -12,18 +12,24 @@ pytestmark = pytest.mark.unit
 def loader(tmp_path, monkeypatch) -> tuple[PDFDocumentLoader, MagicMock]:
     mock_backend = MagicMock()
 
-    def fake_loader_factory(*args, **kwargs):
+    def fake_loader_instance(*args, **kwargs):
         instance = MagicMock()
         instance.load = mock_backend.load
         return instance
 
-    # Patch at dependency level instead of module import level
+    # ---- Patch correct import path ----
     monkeypatch.setattr(
         "src.modules.ingestion.loader.pdf_loader.PyPDFLoader",
-        fake_loader_factory,
+        fake_loader_instance,
     )
 
-    return get_pdf_loader(data_dir=str(tmp_path)), mock_backend
+    # ---- Use factory without unsupported kwargs ----
+    loader_instance = get_pdf_loader()
+
+    # Inject data_dir manually for testing
+    loader_instance.data_dir = tmp_path
+
+    return loader_instance, mock_backend
 
 
 # ---------- Tests ----------
