@@ -13,7 +13,7 @@ class PDFDocumentLoader(DocumentLoaderContract):
     def __init__(self, data_dir: str = "data/raw"):
         self.data_dir = Path(data_dir)
 
-    def load_pdf(self, file_name: str) -> list[Document]:
+    def load(self, file_name: str) -> list[Document]:
         try:
             file_path = self.data_dir / file_name
 
@@ -30,5 +30,3 @@ class PDFDocumentLoader(DocumentLoaderContract):
         except Exception:
             logger.exception("load_pdf failed")
             raise
-        
-# print(PDFDocumentLoader().load_pdf("Ai System Design Competition.pdf"))
