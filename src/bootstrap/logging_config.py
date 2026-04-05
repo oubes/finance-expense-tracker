@@ -1,5 +1,8 @@
+# ---- Imports ----
 import logging
 
+
+# ---- Logging Setup ----
 def setup_logging():
     logging.basicConfig(
         level=logging.INFO,

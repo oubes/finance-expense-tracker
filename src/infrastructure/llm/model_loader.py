@@ -1,9 +1,12 @@
+# ---- Imports ----
 from openai import OpenAI
-from src.core.config.loader import load_settings
+from src.core.config.settings import AppSettings
 
+
+# ---- LLM Client Class ----
 class LLMClient:
-    def __init__(self):
-        settings = load_settings()
+    # ---- Constructor ----
+    def __init__(self, settings: AppSettings):
 
         self.client = OpenAI(
             api_key=settings.alibaba_api_key,
@@ -11,6 +14,7 @@ class LLMClient:
         )
         self.model = settings.llm.model
 
+    # ---- Generation Method ----
     def generate(
         self,
         messages: list[dict[str, str]],

@@ -1,19 +1,24 @@
+# ---- Imports ----
 import logging
 from src.infrastructure.embeddings.model_loader import ModelLoader
 
+# ---- Logger Initialization ----
 logger = logging.getLogger(__name__)
 
 
+# ---- Embedder Class ----
 class Embedder:
-    def __init__(self, model_loader: ModelLoader | None = None):
+    # ---- Constructor ----
+    def __init__(self, model_loader: ModelLoader):
         logger.info("Initializing Embedder")
-        self.model_loader = model_loader or ModelLoader()
+        self.model_loader = model_loader
 
         self.client = self.model_loader.get_client()
         self.model = self.model_loader.get_embedding_model()
 
         logger.info("Embedder initialized using model: %s", self.model)
 
+    # ---- Single Text Embedding ----
     def embed(self, text: str) -> list[float]:
         logger.debug("Embedding single text")
         response = self.client.embeddings.create(
@@ -24,6 +29,7 @@ class Embedder:
         logger.debug("Single embedding generated")
         return embedding
 
+    # ---- Batch Embedding ----
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         logger.debug("Embedding batch of size: %d", len(texts))
         response = self.client.embeddings.create(

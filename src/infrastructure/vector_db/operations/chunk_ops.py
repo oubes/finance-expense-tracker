@@ -1,3 +1,4 @@
+# ---- Imports ----
 import logging
 
 from infrastructure.vector_db.queries.chunk_queries import (
@@ -12,6 +13,8 @@ from infrastructure.vector_db.queries.chunk_queries import (
 logger = logging.getLogger(__name__)
 
 
+# ---- Initialize Chunks Table ----
+# Creates the chunks table with the provided embedding dimension.
 async def init_chunks_table(client, dim: int):
     try:
         create_sql = CREATE_CHUNKS_TABLE_SQL.format(dim=dim)
@@ -23,6 +26,8 @@ async def init_chunks_table(client, dim: int):
         raise
 
 
+# ---- Upsert Chunks ----
+# Inserts chunks and their corresponding embeddings into the database.
 async def upsert_chunks(client, doc_name, chunks, vectors):
     try:
         for i, (chunk, vec) in enumerate(zip(chunks, vectors)):
@@ -45,6 +50,8 @@ async def upsert_chunks(client, doc_name, chunks, vectors):
         raise
 
 
+# ---- Delete All Chunks ----
+# Removes all stored chunks from the database.
 async def delete_all_chunks(client):
     try:
         await client.execute(DELETE_CHUNKS_SQL)
@@ -55,6 +62,8 @@ async def delete_all_chunks(client):
         raise
 
 
+# ---- Count Chunks ----
+# Returns the total number of chunks stored in the database.
 async def count_chunks(client):
     try:
         result = await client.execute_one(COUNT_CHUNKS_SQL)
@@ -64,12 +73,14 @@ async def count_chunks(client):
         return 0
 
 
+# ---- Preview Chunks ----
+# Retrieves a limited preview of stored chunks.
 async def preview_chunks(client, limit=10):
     try:
         rows = await client.execute(
             PREVIEW_CHUNKS_SQL,
             (limit,),
-            fetch=True
+            fetch=True,
         )
         return rows or []
     except Exception:
@@ -77,6 +88,8 @@ async def preview_chunks(client, limit=10):
         return []
 
 
+# ---- Search Chunks ----
+# Performs similarity search using query embedding and document filter.
 async def search_chunks(client, query_embedding, doc_name, limit=5):
     try:
         rows = await client.execute(
@@ -87,7 +100,7 @@ async def search_chunks(client, query_embedding, doc_name, limit=5):
                 query_embedding,
                 limit,
             ),
-            fetch=True
+            fetch=True,
         )
         return rows or []
     except Exception:

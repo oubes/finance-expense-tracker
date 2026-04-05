@@ -1,12 +1,18 @@
-from abc import ABC, abstractmethod
+# ---- Imports ----
 import logging
 
+# ---- Logger Initialization ----
 logger = logging.getLogger(__name__)
 
+
+# ---- DB Executor Class ----
 class DBExecutor:
+
+    # ---- Constructor ----
     def __init__(self, db_connect):
         self.db = db_connect
 
+    # ---- Execute Query ----
     async def execute(self, query, params=None, fetch: bool = False):
         try:
             async with self.db.conn.cursor() as cur:
@@ -24,6 +30,7 @@ class DBExecutor:
             logger.exception("Execute failed.")
             return None
 
+    # ---- Execute One Row ----
     async def execute_one(self, query, params=None):
         try:
             async with self.db.conn.cursor() as cur:
@@ -37,6 +44,7 @@ class DBExecutor:
             logger.exception("Execute one failed.")
             return None
 
+    # ---- Commit Transaction ----
     async def commit(self):
         try:
             await self.db.conn.commit()

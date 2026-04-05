@@ -1,14 +1,20 @@
+# ---- Imports ----
 from fastapi import Depends
 import logging
 from sentence_transformers import CrossEncoder
 from src.core.config.loader import load_settings
 import torch
 
+# ---- Logger Initialization ----
 logger = logging.getLogger(__name__)
 
+# ---- Settings Initialization ----
 settings = load_settings()
 
+
+# ---- Model Loader Class ----
 class ModelLoader:
+    # ---- Constructor ----
     def __init__(self):
         logger.info("Initializing ModelLoader")
         self.model_name = settings.rag.cross_encoder_model
@@ -16,6 +22,7 @@ class ModelLoader:
         logger.info("Using device: %s", self.device)
         self._model = None
 
+    # ---- Model Loading ----
     def load_model(self) -> CrossEncoder:
         logger.debug("load_model called")
         if self._model is None:
@@ -29,10 +36,12 @@ class ModelLoader:
             logger.debug("Model already loaded")
         return self._model
 
+    # ---- Client Getter ----
     def get_client(self) -> CrossEncoder:
         logger.debug("get_client called")
         return self.load_model()
 
+    # ---- Device Getter ----
     def get_device(self) -> str:
         logger.debug("get_device called: %s", self.device)
         return self.device

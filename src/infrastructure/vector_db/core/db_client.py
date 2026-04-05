@@ -1,18 +1,24 @@
+# ---- Imports ----
 import logging
 
 from src.infrastructure.vector_db.core.db_conn import DBConnect
 from src.infrastructure.vector_db.extensions.db_vector_ext import VectorExtension
 from src.infrastructure.vector_db.core.db_exec import DBExecutor
 
+# ---- Logger Initialization ----
 logger = logging.getLogger(__name__)
 
+
+# ---- Postgres Vector Client Class ----
 class PostgresVectorClient:
 
-    def __init__(self, conn: DBConnect):
+    # ---- Constructor ----
+    def __init__(self, conn: DBConnect, db_executor: DBExecutor, vector_ext: VectorExtension):
         self.db = conn
-        self.vector = None
-        self.executor = None
+        self.vector = vector_ext
+        self.executor = db_executor
 
+    # ---- Initialization ----
     async def init(self):
         logger.info("Initializing PostgresVectorClient...")
 
@@ -33,6 +39,7 @@ class PostgresVectorClient:
         logger.info("pgvector extension enabled.")
         return True
 
+    # ---- System Readiness Check ----
     async def is_system_ready(self):
         logger.debug("Checking system readiness...")
 
@@ -49,6 +56,7 @@ class PostgresVectorClient:
         logger.info(f"System readiness: {ready}")
         return ready
 
+    # ---- Cleanup ----
     async def close(self):
         logger.info("Closing PostgresVectorClient...")
 
@@ -58,11 +66,14 @@ class PostgresVectorClient:
         except Exception:
             logger.exception("Error while closing database connection.")
 
+    # ---- Execute Query ----
     async def execute(self, query, params=None, fetch: bool = False):
-        return await self.executor.execute(query, params=params, fetch=fetch) # type: ignore
+        return await self.executor.execute(query, params=params, fetch=fetch)  # type: ignore
 
+    # ---- Execute Single Row Query ----
     async def execute_one(self, query, params=None):
-        return await self.executor.execute_one(query, params=params) # type: ignore
+        return await self.executor.execute_one(query, params=params)  # type: ignore
 
+    # ---- Commit Transaction ----
     async def commit(self):
-        await self.executor.commit() # type: ignore
+        await self.executor.commit()  # type: ignore

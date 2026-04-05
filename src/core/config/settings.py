@@ -1,14 +1,16 @@
+# ---- Imports ----
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# ---------- Sub Models ----------
+# ---- Sub Models ----
 class LLMConfig(BaseModel):
     provider: str
     base_url: str
     model: str
     temperature: float = 0.0
     max_tokens: int = 256
+
 
 class EmbeddingsConfig(BaseModel):
     model: str
@@ -21,6 +23,8 @@ class RAGConfig(BaseModel):
     top_k_retrieval: int
     top_k_rerank: int
     cross_encoder_model: str
+
+
 class VectorDBConfig(BaseModel):
     enabled: bool
     table: str
@@ -55,7 +59,7 @@ class RedisConfig(BaseModel):
     full_url: str
 
 
-# ---------- Root Settings ----------
+# ---- Root Settings ----
 class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -63,29 +67,31 @@ class AppSettings(BaseSettings):
         extra="ignore",
     )
 
-    # App
+    # ---- App ----
     app_name: str = Field(alias="APP_NAME")
     app_env: str = Field(alias="APP_ENV")
     debug: bool = Field(alias="DEBUG")
     log_level: str = Field(alias="LOG_LEVEL")
 
-    # Server
+    # ---- Server ----
     host: str = Field(alias="HOST")
     port: int = Field(alias="PORT")
 
-    # Security
+    # ---- Security ----
     secret_key: str = Field(alias="SECRET_KEY")
 
-    # External APIs
+    # ---- External APIs ----
     alibaba_api_key: str | None = Field(alias="ALIBABA_API_KEY", default=None)
 
-    # ---------- Flat DB ENV ----------
+    # ---- Flat DB ENV ----
     postgres_host: str = Field(alias="POSTGRES_HOST")
     postgres_port: int = Field(alias="POSTGRES_PORT")
     postgres_db: str = Field(alias="POSTGRES_DB")
     postgres_user: str = Field(alias="POSTGRES_USER")
     postgres_password: str = Field(alias="POSTGRES_PASSWORD")
     postgres_db_type: str = Field(alias="POSTGRES_DB_TYPE")
+
+    # ---- Postgres URL Builder ----
     @property
     def postgres_full_url(self) -> str:
         return (
@@ -96,11 +102,13 @@ class AppSettings(BaseSettings):
             f"{self.postgres_db}"
         )
 
-    # ---------- Flat Redis ENV ----------
+    # ---- Flat Redis ENV ----
     redis_host: str = Field(alias="REDIS_HOST")
     redis_port: int = Field(alias="REDIS_PORT")
     redis_db: int = Field(alias="REDIS_DB")
     redis_password: str | None = Field(alias="REDIS_PASSWORD", default=None)
+
+    # ---- Redis URL Builder ----
     @property
     def redis_full_url(self) -> str:
         auth_part = f":{self.redis_password}@" if self.redis_password else ""
@@ -112,7 +120,7 @@ class AppSettings(BaseSettings):
             f"{self.redis_db}"
         )
 
-    # Structured configs (from YAML)
+    # ---- Structured configs (from YAML) ----
     llm: LLMConfig
     embeddings: EmbeddingsConfig
     rag: RAGConfig
@@ -120,11 +128,11 @@ class AppSettings(BaseSettings):
     rate_limit: RateLimitConfig
     observability: ObservabilityConfig
 
-    # Infra configs (built from ENV)
+    # ---- Infra configs (built from ENV) ----
     database: DatabaseConfig | None = None
     redis: RedisConfig | None = None
 
-    # ---------- Build nested configs ----------
+    # ---- Post Init Hook ----
     def model_post_init(self, __context):
         self.database = DatabaseConfig(
             host=self.postgres_host,
@@ -133,7 +141,7 @@ class AppSettings(BaseSettings):
             user=self.postgres_user,
             password=self.postgres_password,
             full_url=self.postgres_full_url,
-            type=self.postgres_db_type
+            type=self.postgres_db_type,
         )
 
         self.redis = RedisConfig(

@@ -1,10 +1,14 @@
+# ---- Imports ----
 from src.infrastructure.llm.model_loader import LLMClient
 
 
+# ---- LLM Generator Class ----
 class LLMGenerator:
+    # ---- Constructor ----
     def __init__(self, llm: LLMClient):
         self.llm = llm
 
+    # ---- Text Generation ----
     def generate(
         self,
         messages: list[dict],
@@ -17,4 +21,3 @@ class LLMGenerator:
             temperature=temperature,
             max_tokens=max_tokens,
         )
-        

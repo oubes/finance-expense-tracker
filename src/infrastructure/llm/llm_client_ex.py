@@ -1,5 +1,5 @@
 from src.infrastructure.llm.model_loader import LLMClient
-from src.infrastructure.llm.msg_builder import MsgBuilder
+from src.modules.prompts.msg_builder import MsgBuilder
 
 llm = LLMClient()
 msg_builder = MsgBuilder()

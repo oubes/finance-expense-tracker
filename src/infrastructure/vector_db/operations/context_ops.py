@@ -1,3 +1,4 @@
+# ---- Imports ----
 import logging
 
 from infrastructure.vector_db.queries.context_queries import (
@@ -12,6 +13,7 @@ from infrastructure.vector_db.queries.context_queries import (
 logger = logging.getLogger(__name__)
 
 
+# ---- Initialize Context Table ----
 async def init_context_table(client, dim: int):
     try:
         sql = CREATE_CONTEXT_TABLE_SQL.format(dim=dim)
@@ -23,6 +25,7 @@ async def init_context_table(client, dim: int):
         raise
 
 
+# ---- Insert Context ----
 async def insert_context(client, session_id, role, content, embedding):
     try:
         await client.execute(
@@ -35,6 +38,7 @@ async def insert_context(client, session_id, role, content, embedding):
         raise
 
 
+# ---- Search Context ----
 async def search_context(client, query_embedding, session_id, limit=5):
     try:
         rows = await client.execute(
@@ -53,6 +57,7 @@ async def search_context(client, query_embedding, session_id, limit=5):
         return []
 
 
+# ---- Get Recent Context ----
 async def get_recent_context(client, session_id, limit=10):
     try:
         rows = await client.execute(
@@ -66,6 +71,7 @@ async def get_recent_context(client, session_id, limit=10):
         return []
 
 
+# ---- Delete Context By Session ----
 async def delete_context_session(client, session_id):
     try:
         await client.execute(
@@ -78,6 +84,7 @@ async def delete_context_session(client, session_id):
         raise
 
 
+# ---- Count Context ----
 async def count_context(client, session_id):
     try:
         result = await client.execute_one(

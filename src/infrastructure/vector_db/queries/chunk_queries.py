@@ -1,3 +1,4 @@
+# ---- Create Chunks Table ----
 CREATE_CHUNKS_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS rag_cv_chunks (
         id SERIAL PRIMARY KEY,
@@ -10,6 +11,7 @@ CREATE_CHUNKS_TABLE_SQL = """
 """
 
 
+# ---- Insert Chunk ----
 INSERT_CHUNK_SQL = """
     INSERT INTO rag_cv_chunks
     (doc_name, section, chunk_index, content, embedding)
@@ -17,6 +19,7 @@ INSERT_CHUNK_SQL = """
 """
 
 
+# ---- Search Chunks (Vector Similarity) ----
 SEARCH_CHUNKS_SQL = """
     SELECT section, content, 1 - (embedding <=> %s::vector) AS cosine_sim
     FROM rag_cv_chunks
@@ -26,22 +29,27 @@ SEARCH_CHUNKS_SQL = """
 """
 
 
+# ---- Delete All Chunks ----
 DELETE_CHUNKS_SQL = """
     DELETE FROM rag_cv_chunks;
 """
 
 
+# ---- Count Chunks ----
 COUNT_CHUNKS_SQL = """
     SELECT COUNT(*) FROM rag_cv_chunks;
 """
 
 
+# ---- Preview Chunks ----
 PREVIEW_CHUNKS_SQL = """
     SELECT doc_name, section, content
     FROM rag_cv_chunks
     LIMIT %s
 """
 
+
+# ---- Keyword Search Chunks (Full-Text Search) ----
 KEYWORD_SEARCH_CHUNKS_SQL = """
     SELECT 
         section,

@@ -1,7 +1,10 @@
+# ---- Msg Builder Class ----
 class MsgBuilder:
+    # ---- Constructor ----
     def __init__(self, default_system_prompt: str = "You are a helpful assistant."):
         self.default_system_prompt = default_system_prompt
 
+    # ---- Message Construction ----
     def build(
         self,
         system_prompt: str,
@@ -9,7 +12,7 @@ class MsgBuilder:
         question: str,
         context: str,
         retrieval_chunks: list[str],
-) -> list[dict]:
+    ) -> list[dict]:
 
         system_content = system_prompt or self.default_system_prompt
 
@@ -24,7 +27,6 @@ class MsgBuilder:
             )
         except Exception:
             user_content = user_prompt
-
 
         return [
             {"role": "system", "content": system_content},

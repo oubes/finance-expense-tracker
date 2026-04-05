@@ -1,15 +1,19 @@
+# ---- Imports ----
 import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Executes BM25 search using external query
+
+# ---- BM25 Retriever ----
+# Executes BM25 search using an injected SQL query and database client.
 class BM25Retriever:
     def __init__(self, db_client, query_sql: str):
         self.db = db_client
         self.query_sql = query_sql
 
-    # Run BM25 search
+    # ---- Search ----
+    # Runs BM25 full-text search and returns ranked results.
     async def search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         logger.info("BM25 search started")
         params = (query, query, limit)

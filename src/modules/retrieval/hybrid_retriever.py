@@ -1,3 +1,4 @@
+# ---- Imports ----
 import logging
 from typing import Any
 
@@ -6,13 +7,14 @@ from src.modules.retrieval.vector_retriever import VectorRetriever
 
 logger = logging.getLogger(__name__)
 
-# Combines BM25 and vector retrieval results
+
+# ---- Hybrid Retriever ----
 class HybridRetriever:
     def __init__(self, bm25: BM25Retriever, vector: VectorRetriever):
         self.bm25 = bm25
         self.vector = vector
 
-    # Main hybrid search pipeline
+    # ---- Hybrid Search ----
     async def search(
         self,
         query: str,
@@ -32,14 +34,14 @@ class HybridRetriever:
         logger.info(f"Hybrid search returned {len(final)} results")
         return final
 
-    # Fetch both retrievers results
+    # ---- Fetch Results ----
     async def _fetch(self, query: str, limit: int):
         return (
             await self.bm25.search(query, limit * 2),
             await self.vector.search(query, limit * 2),
         )
 
-    # Normalize scores to 0..1
+    # ---- Normalize Scores ----
     def _normalize(self, results: list, key: str) -> list:
         if not results:
             return []
@@ -51,14 +53,14 @@ class HybridRetriever:
 
         return results
 
-    # Normalize and invert distance scores
+    # ---- Normalize and Invert Distance ----
     def _normalize_and_invert(self, results: list, key: str) -> list:
         results = self._normalize(results, key)
         for r in results:
             r["norm_score"] = 1 - r["norm_score"]
         return results
 
-    # Merge bm25 and vector results
+    # ---- Merge Results ----
     def _merge(
         self,
         bm25_results: list,
@@ -87,6 +89,6 @@ class HybridRetriever:
 
         return combined
 
-    # Sort and apply limit
+    # ---- Rank Results ----
     def _rank(self, combined: dict, limit: int) -> list[dict[str, Any]]:
         return sorted(combined.values(), key=lambda x: x["score"], reverse=True)[:limit]
