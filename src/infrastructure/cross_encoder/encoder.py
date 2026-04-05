@@ -1,5 +1,6 @@
 # ---- Imports ----
 import logging
+from core.contracts.cross_encoder.encoder import CrossEncoderContract
 from src.infrastructure.cross_encoder.model_loader import ModelLoader
 
 # ---- Logger Initialization ----
@@ -7,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 # ---- Encoder Class ----
-class Encoder:
+class Encoder(CrossEncoderContract):
     # ---- Constructor ----
     def __init__(self, model_loader: ModelLoader | None = None):
         logger.info("Initializing Encoder")

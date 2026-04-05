@@ -1,5 +1,6 @@
 # ---- Imports ----
 import logging
+from src.core.contracts.embeddings.embedder import EmbedderContract
 from src.infrastructure.embeddings.model_loader import ModelLoader
 
 # ---- Logger Initialization ----
@@ -7,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 # ---- Embedder Class ----
-class Embedder:
+class Embedder(EmbedderContract):
     # ---- Constructor ----
     def __init__(self, model_loader: ModelLoader):
         logger.info("Initializing Embedder")

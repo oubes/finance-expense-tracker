@@ -13,8 +13,9 @@ logger = logging.getLogger(__name__)
 class LLMHealth:
     # ---- Constructor ----
     def __init__(self):
-        self.client = get_llm_client()
-        self.model_name = self.client.model
+        self.llm_client = get_llm_client()
+        self.client = self.llm_client.get_client()
+        self.model_name = self.llm_client.get_model()
 
     # ---- Health Check Execution ----
     async def check(self, timeout: float = 3.0) -> DependencyResult:
@@ -24,7 +25,7 @@ class LLMHealth:
             async with asyncio.timeout(timeout):
                 # ---- LLM Request Execution ----
                 response = await asyncio.to_thread(
-                    self.client.client.chat.completions.create,
+                    self.client.chat.completions.create,
                     model=self.model_name,
                     messages=[{"role": "user", "content": "ping"}],
                     max_tokens=1,

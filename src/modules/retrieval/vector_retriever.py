@@ -2,11 +2,13 @@
 import logging
 from typing import Any
 
+from src.core.contracts.retrieval.retriever import RetrieverContract
+
 logger = logging.getLogger(__name__)
 
 
 # ---- Vector Retriever ----
-class VectorRetriever:
+class VectorRetriever(RetrieverContract):
     def __init__(self, db_client, embedding_fn, query_sql: str):
         self.db = db_client
         self.embedding_fn = embedding_fn

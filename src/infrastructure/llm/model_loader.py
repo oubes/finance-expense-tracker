@@ -1,32 +1,23 @@
 # ---- Imports ----
 from openai import OpenAI
 from src.core.config.settings import AppSettings
+from src.core.contracts.llm.llm import LLMClientContract
 
 
-# ---- LLM Client Class ----
-class LLMClient:
+# ---- LLM Client ----
+class LLMClient(LLMClientContract):
     # ---- Constructor ----
     def __init__(self, settings: AppSettings):
-
-        self.client = OpenAI(
+        self._client = OpenAI(
             api_key=settings.alibaba_api_key,
             base_url=settings.llm.base_url,
         )
-        self.model = settings.llm.model
+        self._model = settings.llm.model
 
-    # ---- Generation Method ----
-    def generate(
-        self,
-        messages: list[dict[str, str]],
-        temperature: float = 0.2,
-        max_tokens: int = 128
-    ) -> str:
+    # ---- Get Client ----
+    def get_client(self) -> OpenAI:
+        return self._client
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,  # type: ignore
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-
-        return response.choices[0].message.content  # type: ignore
+    # ---- Get Model ----
+    def get_model(self) -> str:
+        return self._model

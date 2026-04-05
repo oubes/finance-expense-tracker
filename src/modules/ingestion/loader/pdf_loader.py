@@ -4,10 +4,12 @@ from pathlib import Path
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 
+from core.contracts.loader.document_loader import DocumentLoaderContract
+
 logger = logging.getLogger(__name__)
 
 
-class PDFDocumentLoader:
+class PDFDocumentLoader(DocumentLoaderContract):
     def __init__(self, data_dir: str = "data/raw"):
         self.data_dir = Path(data_dir)
 

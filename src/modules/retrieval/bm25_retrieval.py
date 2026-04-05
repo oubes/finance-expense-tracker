@@ -2,12 +2,14 @@
 import logging
 from typing import Any
 
+from src.core.contracts.retrieval.retriever import RetrieverContract
+
 logger = logging.getLogger(__name__)
 
 
 # ---- BM25 Retriever ----
 # Executes BM25 search using an injected SQL query and database client.
-class BM25Retriever:
+class BM25Retriever(RetrieverContract):
     def __init__(self, db_client, query_sql: str):
         self.db = db_client
         self.query_sql = query_sql

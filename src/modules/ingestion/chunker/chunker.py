@@ -6,6 +6,7 @@ from typing import Any
 from langchain_core.documents import Document
 
 # ---- Internal ----
+from src.core.contracts.chunking.chunker import ChunkerContract
 from src.modules.ingestion.chunker.cleaner import TextCleaner
 from src.modules.ingestion.chunker.validator import TextValidator
 from src.modules.ingestion.chunker.toc_classifier import TOCClassifier
@@ -15,7 +16,7 @@ from src.modules.ingestion.chunker.scoring import ChunkScorer
 logger = logging.getLogger(__name__)
 
 
-class Chunker:
+class Chunker(ChunkerContract):
     # ---- Initialization ----
     def __init__(
         self,

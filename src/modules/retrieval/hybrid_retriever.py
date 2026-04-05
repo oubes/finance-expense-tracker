@@ -2,15 +2,14 @@
 import logging
 from typing import Any
 
-from src.modules.retrieval.bm25_retrieval import BM25Retriever
-from src.modules.retrieval.vector_retriever import VectorRetriever
+from src.core.contracts.retrieval.retriever import RetrieverContract
 
 logger = logging.getLogger(__name__)
 
 
 # ---- Hybrid Retriever ----
-class HybridRetriever:
-    def __init__(self, bm25: BM25Retriever, vector: VectorRetriever):
+class HybridRetriever(RetrieverContract):
+    def __init__(self, bm25: RetrieverContract, vector: RetrieverContract):
         self.bm25 = bm25
         self.vector = vector
 
