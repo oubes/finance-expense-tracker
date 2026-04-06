@@ -44,8 +44,10 @@ from src.modules.ingestion.chunker.scoring import ChunkScorer
 from src.modules.ingestion.chunker.chunker import Chunker
 
 # ---- Ingestion Pipeline ----
-
 from src.pipelines.v1.ingestion_pipeline import IngestionPipeline
+
+# ---- Ingestion Service ----
+from src.services.v1.chunk_ingestion_service import ChunkIngestionService
 
 # ---- Logger Initialization ----
 logger = logging.getLogger(__name__)
@@ -342,3 +344,14 @@ def get_ingestion_pipeline() -> IngestionPipeline:
         json_validator=llm_json_validator
     )
     return ingestion_pipeline
+
+# ---- Ingestion Service ----
+def get_ingestion_service() -> ChunkIngestionService:
+    # Initialize the ingestion service with a database client
+    logger.info("Initializing Ingestion Service")
+    db_client = get_db_client()
+    ingestion_service = ChunkIngestionService(
+        client=db_client,
+        collection="chunk_embeddings",
+    )
+    return ingestion_service
