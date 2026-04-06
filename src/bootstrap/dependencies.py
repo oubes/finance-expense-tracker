@@ -1,7 +1,6 @@
 # ---- Standard Library ----
 import logging
 from functools import lru_cache
-from collections.abc import AsyncIterator
 
 # ---- Core Config ----
 from src.core.config.loader import load_settings
