@@ -30,8 +30,8 @@ from src.modules.rag.retrieval.queries import VECTOR_SEARCH_QUERY, BM25_SEARCH_Q
 # ---- LLM Prompting / Generation ----
 from src.modules.prompts.prompt_loader import PromptLoader
 from src.modules.prompts.prompt_registry import PromptRegistry
-from src.modules.prompts.llm_json_validator import LLMJsonValidator
-from src.modules.prompts.llm_json_extractor import LLMJsonExtractor
+from src.modules.prompts.processing.llm_json_validator import LLMJsonValidator
+from src.modules.prompts.processing.llm_json_extractor import LLMJsonExtractor
 from src.modules.prompts.msg_builder import MsgBuilder
 
 # ---- Ingestion Pipeline ----
@@ -289,20 +289,6 @@ def register_prompts() -> PromptRegistry:
     registry = PromptRegistry(settings)
     return registry
 
-def get_llm_json_validator() -> LLMJsonValidator:
-    # Initialize JSON validator for LLM outputs
-    logger.info("Initializing LLM JSON Validator")
-    required_keys = {"summary", "key_points"}
-    allowed_flags = {"SUCCESS_FLAG", "FAIL_FLAG"}
-    validator = LLMJsonValidator(required_keys=required_keys, allowed_flags=allowed_flags)
-    return validator
-
-def get_llm_json_extractor() -> LLMJsonExtractor:
-    # Initialize JSON extractor for LLM outputs
-    logger.info("Initializing LLM JSON Extractor")
-    validator = get_llm_json_validator()
-    extractor = LLMJsonExtractor()
-    return extractor
 
 def get_msg_builder() -> MsgBuilder:
     # Initialize message builder for constructing LLM prompts
@@ -314,11 +300,19 @@ def get_msg_builder() -> MsgBuilder:
     msg_builder = MsgBuilder(
         prompt_loader=prompt_loader,
         registry=prompt_registry,
-        validator=prompt_validator,
-        extractor=prompt_extractor
     )
     return msg_builder
 
+def get_llm_json_validator() -> LLMJsonValidator:
+    # Initialize JSON validator for LLM outputs
+    logger.info("Initializing LLM JSON Validator")
+    validator = LLMJsonValidator()
+    return validator
 
-from src.modules.ingestion.loader.pdf_loader import PDFDocumentLoader2
-from src.modules.ingestion.loader.pdf_loader import PDFDocumentLoader3
+def get_llm_json_extractor() -> LLMJsonExtractor:
+    # Initialize JSON extractor for LLM outputs
+    logger.info("Initializing LLM JSON Extractor")
+    validator = get_llm_json_validator()
+    extractor = LLMJsonExtractor()
+    return extractor
+

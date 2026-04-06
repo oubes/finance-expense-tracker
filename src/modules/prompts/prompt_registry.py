@@ -3,7 +3,6 @@ from pathlib import Path
 from src.core.config.settings import AppSettings
 
 
-# ---- Prompt Registry (Auto Discovery) ----
 class PromptRegistry:
     # ---- Constructor ----
     def __init__(self, settings: AppSettings):
@@ -16,7 +15,7 @@ class PromptRegistry:
     # ---- Scan Directory ----
     def _load_prompts(self) -> None:
         for file_path in self.base_dir.glob("*.md"):
-            key = file_path.stem  # filename without extension
+            key = file_path.stem
             self._registry[key] = file_path
 
     # ---- Resolve Prompt Path ----
@@ -26,6 +25,6 @@ class PromptRegistry:
 
         return str(self._registry[name])
 
-    # ---- List Available Prompts ----
+    # ---- List Available ----
     def list(self) -> list[str]:
         return list(self._registry.keys())

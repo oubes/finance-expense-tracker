@@ -2,7 +2,6 @@
 from pathlib import Path
 
 
-# ---- Prompt Loader ----
 class PromptLoader:
     # ---- Load ----
     def load(self, file_path: str) -> dict[str, str]:
@@ -15,7 +14,6 @@ class PromptLoader:
         for line in text.splitlines():
             stripped = line.strip()
 
-            # ---- Header Detection ----
             if stripped.startswith("# "):
                 current_section = stripped[2:].strip().lower()
                 sections[current_section] = []
@@ -23,7 +21,6 @@ class PromptLoader:
                 if current_section:
                     sections[current_section].append(line)
 
-        # ---- Join Sections ----
         return {
             key: "\n".join(value).strip()
             for key, value in sections.items()

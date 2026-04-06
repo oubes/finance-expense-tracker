@@ -8,7 +8,9 @@ from src.bootstrap.dependencies import (
     get_chunker,
     get_embedding,
     get_llm_generator,
-    get_msg_builder
+    get_msg_builder,
+    get_llm_json_extractor,
+    get_llm_json_validator
 )
 
 # ---- Config ----
@@ -20,8 +22,8 @@ DOC_NAME = "Ai System Design Competition.pdf"
 class IngestionState(TypedDict):
     document: list[Document] | None
     chunks: list[dict] | None
-    summary: list[str] | None
     messages: list[dict] | None
+    summary: list[str] | None
     embeddings: list[list[float]] | None
 
 
@@ -43,40 +45,70 @@ def chunker_node(state: IngestionState) -> IngestionState:
     # print("chunks: ", state["chunks"])
     return state
 
-def summarizer_build_node(state: IngestionState) -> IngestionState:
+def summarizer_msg_builder_node(state: IngestionState) -> IngestionState:
     msg_builder = get_msg_builder()
 
     if not state["chunks"]:
         raise ValueError("No chunks available")
 
-    variables = {
-        "topic": state["chunks"][0]["doc_name"],
-        "content": "\n\n".join(chunk["content"] for chunk in state["chunks"]),
-    }
+    # ---- Build Batch Inputs ----
+    inputs = [
+        {
+            "topic": chunk["doc_name"],
+            "content": chunk["content"],
+        }
+        for chunk in state["chunks"]
+    ]
 
-    messages = msg_builder.build(
+    # ---- Build Messages Batch ----
+    batch_messages = msg_builder.build_batch(
         prompt_file_name="summarizer",
-        **variables,
+        inputs=inputs,
     )
 
-    state["messages"] = messages
-    print("messages: ", state["messages"])
+    # ---- Attach to State ----
+    state["messages"] = batch_messages
+    # print("batch_messages: ", batch_messages)
 
+    # print("messages: ", state["messages"])
     return state
 
-def summarizer_execute_node(state: IngestionState) -> IngestionState:
+# ---- Node ----
+def summarizer_generator_node(state: IngestionState) -> IngestionState:
     summarizer = get_llm_generator()
+    validator = get_llm_json_validator()
+    extractor = get_llm_json_extractor()
 
-    if "messages" not in state or not state["messages"]:
-        raise ValueError("No messages found in state")
+    batch_messages = state.get("messages")
+    if batch_messages is None or len(batch_messages) == 0:
+        raise ValueError("No messages available")
 
-    batch_messages = [state["messages"]]
+    # ---- Define Output Schema (CRITICAL FIX) ----
+    required_keys = {"title", "summary", "flag"}
+    allowed_flags = {"SUCCESS_FLAG"}
 
-    outputs = summarizer.generate_batch(batch_messages)
+    # ---- Generate ----
+    summarized_chunks = [
+        summarizer.generate(msg["data"])
+        for msg in batch_messages
+    ]
 
-    state["summary"] = outputs
-    print("summary: ", state["summary"])
+    # ---- Extract ----
+    extracted_chunk_data = extractor.extract_batch(summarized_chunks)
 
+    # ---- Validate ----
+    validated_chunks = validator.validate_batch(
+        extracted_chunk_data,
+        required_keys=required_keys,
+        allowed_flags=allowed_flags,
+    )
+
+    # ---- Collect Only Valid ----
+    state["summary"] = [
+        item["data"]
+        for item in validated_chunks
+        if item["state"]
+    ]
     return state
 
 
@@ -88,6 +120,7 @@ def embedding_node(state: IngestionState) -> IngestionState:
 
     texts = [chunk["content"] for chunk in state["chunks"]]
     state["embeddings"] = embedding_model.embed_batch(texts)
+    print("embeddings: ", state["embeddings"])
 
     return state
 
@@ -105,18 +138,18 @@ class IngestionPipeline:
     def _register_nodes(self) -> None:
         self.graph.add_node("pdf_loader", pdf_loader_node)
         self.graph.add_node("chunker", chunker_node)
-        self.graph.add_node("summarizer_build", summarizer_build_node)
-        self.graph.add_node("summarizer_execute", summarizer_execute_node)
-        # self.graph.add_node("embedding", embedding_node)
+        self.graph.add_node("summarizer_msg_builder", summarizer_msg_builder_node)
+        self.graph.add_node("summarizer_generator", summarizer_generator_node)
+        self.graph.add_node("embedding", embedding_node)
 
     # ---- Build Graph ----
     def _build_graph(self) -> None:
         self.graph.add_edge(START, "pdf_loader")
         self.graph.add_edge("pdf_loader", "chunker")
-        self.graph.add_edge("chunker", "summarizer_build")
-        self.graph.add_edge("summarizer_build", "summarizer_execute")
-        self.graph.add_edge("summarizer_execute", END)
-        # self.graph.add_edge("embedding", END)
+        self.graph.add_edge("chunker", "summarizer_msg_builder")
+        self.graph.add_edge("summarizer_msg_builder", "summarizer_generator")
+        self.graph.add_edge("summarizer_generator", "embedding")
+        self.graph.add_edge("embedding", END)
 
     # ---- Run Pipeline ----
     def run(self) -> IngestionState:
