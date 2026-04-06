@@ -17,8 +17,8 @@ from src.infrastructure.llm.llm_generator import LLMGenerator
 # ---- Vector DB ----
 from src.infrastructure.vector_db.core.db_conn import DBConnect
 from src.infrastructure.vector_db.core.db_exec import DBExecutor
-from src.infrastructure.vector_db.core.db_client import PostgresVectorClient
 from src.infrastructure.vector_db.extensions.db_vector_ext import VectorExtension
+from src.infrastructure.vector_db.core.db_client import PostgresVectorClient
 
 # ---- Retrieval / RAG ----
 from src.modules.rag.retrieval.bm25_retrieval import BM25Retriever
