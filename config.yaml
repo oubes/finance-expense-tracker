@@ -15,6 +15,8 @@ ingestion:
   chunk_size: 500
   chunk_overlap: 50
   prompt_templates_dir: "src/modules/prompts/templates"
+  doc_name: "Ai System Design Competition.pdf"
+  score_filter_threshold: 0.5
 
 # RAG Settings
 rag:

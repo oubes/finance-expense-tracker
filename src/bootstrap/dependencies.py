@@ -34,7 +34,7 @@ from src.modules.prompts.processing.llm_json_validator import LLMJsonValidator
 from src.modules.prompts.processing.llm_json_extractor import LLMJsonExtractor
 from src.modules.prompts.msg_builder import MsgBuilder
 
-# ---- Ingestion Pipeline ----
+# ---- Ingestion ----
 from src.modules.ingestion.chunker.cleaner_pre import PreTextCleaner
 from src.modules.ingestion.chunker.cleaner_post import PostTextCleaner
 from src.modules.ingestion.chunker.spiltter import Splitter
@@ -43,6 +43,10 @@ from src.modules.ingestion.chunker.validator import TextValidator
 from src.modules.ingestion.loader.pdf_loader import PDFDocumentLoader
 from src.modules.ingestion.chunker.scoring import ChunkScorer
 from src.modules.ingestion.chunker.chunker import Chunker
+
+# ---- Ingestion Pipeline ----
+
+from src.pipelines.v1.ingestion_pipeline import IngestionPipeline
 
 # ---- Logger Initialization ----
 logger = logging.getLogger(__name__)
@@ -316,3 +320,26 @@ def get_llm_json_extractor() -> LLMJsonExtractor:
     extractor = LLMJsonExtractor()
     return extractor
 
+# ---- Ingestion Pipeline ----
+def get_ingestion_pipeline() -> IngestionPipeline:
+    # Initialize the full ingestion pipeline with all dependencies
+    logger.info("Initializing Ingestion Pipeline")
+    settings = get_settings()
+    pdf_loader = get_pdf_loader()
+    chunker = get_chunker()
+    embedder = get_embedding()
+    msg_builder = get_msg_builder()
+    llm_generator = get_llm_generator()
+    llm_json_extractor = get_llm_json_extractor()
+    llm_json_validator = get_llm_json_validator()
+    ingestion_pipeline = IngestionPipeline(
+        config=settings,
+        pdf_loader=pdf_loader,
+        chunker=chunker,
+        embedding=embedder,
+        llm_generator=llm_generator,
+        msg_builder=msg_builder,
+        json_extractor=llm_json_extractor,
+        json_validator=llm_json_validator
+    )
+    return ingestion_pipeline

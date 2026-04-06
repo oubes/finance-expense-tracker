@@ -8,22 +8,24 @@ class LLMConfig(BaseModel):
     provider: str
     base_url: str
     model: str
-    temperature: float = 0.0
-    max_tokens: int = 256
+    temperature: float = Field(0.1, ge=0.0, le=1.0)  # Ensure it's between 0 and 1
+    max_tokens: int = Field(256, gt=0)
 
 class ingestionConfig(BaseModel):
-    chunk_size: int
-    chunk_overlap: int
+    chunk_size: int = Field(500, gt=0)
+    chunk_overlap: int = Field(50, ge=0)
     prompt_templates_dir: str
+    doc_name: str
+    score_filter_threshold: float = Field(0.5, ge=0.0, le=1.0)  # Ensure it's between 0 and 1
 
 class EmbeddingsConfig(BaseModel):
     model: str
-    dimension: int
+    dimension: int = Field(1024, gt=0)
 
 
 class RAGConfig(BaseModel):
-    top_k_retrieval: int
-    top_k_rerank: int
+    top_k_retrieval: int = Field(5, gt=0)
+    top_k_rerank: int = Field(3, gt=0)
     cross_encoder_model: str
 
 
@@ -33,8 +35,8 @@ class VectorDBConfig(BaseModel):
 
 
 class RateLimitConfig(BaseModel):
-    requests: int
-    window_seconds: int
+    requests: int = Field(100, gt=0)
+    window_seconds: int = Field(60, gt=0)
 
 
 class ObservabilityConfig(BaseModel):
@@ -45,7 +47,7 @@ class ObservabilityConfig(BaseModel):
 
 class DatabaseConfig(BaseModel):
     host: str
-    port: int
+    port: int = Field(5432, gt=0)
     db: str
     user: str
     password: str
@@ -55,7 +57,7 @@ class DatabaseConfig(BaseModel):
 
 class RedisConfig(BaseModel):
     host: str
-    port: int
+    port: int = Field(6379, gt=0)
     db: int
     password: str | None = None
     full_url: str
