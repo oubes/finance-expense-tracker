@@ -1,6 +1,6 @@
 # ---- Imports ----
 import logging
-from core.contracts.cross_encoder.encoder import CrossEncoderContract
+from src.core.contracts.cross_encoder.encoder import CrossEncoderContract
 from src.infrastructure.cross_encoder.model_loader import ModelLoader
 
 # ---- Logger Initialization ----

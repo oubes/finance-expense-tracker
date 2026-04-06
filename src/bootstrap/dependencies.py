@@ -22,13 +22,21 @@ from src.infrastructure.vector_db.core.db_client import PostgresVectorClient
 from src.infrastructure.vector_db.extensions.db_vector_ext import VectorExtension
 
 # ---- Retrieval / RAG ----
-from src.modules.retrieval.bm25_retrieval import BM25Retriever
-from src.modules.retrieval.vector_retriever import VectorRetriever
-from src.modules.retrieval.hybrid_retriever import HybridRetriever
-from src.modules.retrieval.queries import VECTOR_SEARCH_QUERY, BM25_SEARCH_QUERY
+from src.modules.rag.retrieval.bm25_retrieval import BM25Retriever
+from src.modules.rag.retrieval.vector_retriever import VectorRetriever
+from src.modules.rag.retrieval.hybrid_retriever import HybridRetriever
+from src.modules.rag.retrieval.queries import VECTOR_SEARCH_QUERY, BM25_SEARCH_QUERY
+
+# ---- LLM Prompting / Generation ----
+from src.modules.prompts.prompt_loader import PromptLoader
+from src.modules.prompts.prompt_registry import PromptRegistry
+from src.modules.prompts.llm_json_validator import LLMJsonValidator
+from src.modules.prompts.llm_json_extractor import LLMJsonExtractor
+from src.modules.prompts.msg_builder import MsgBuilder
 
 # ---- Ingestion Pipeline ----
-from src.modules.ingestion.chunker.cleaner import TextCleaner
+from src.modules.ingestion.chunker.cleaner_pre import PreTextCleaner
+from src.modules.ingestion.chunker.cleaner_post import PostTextCleaner
 from src.modules.ingestion.chunker.spiltter import Splitter
 from src.modules.ingestion.chunker.toc_classifier import TOCClassifier
 from src.modules.ingestion.chunker.validator import TextValidator
@@ -101,11 +109,19 @@ def get_cross_encoder() -> CrossEncoder:
 
 # ---- Ingestion Dependencies ----
 @lru_cache()
-def get_chunker_cleaner() -> TextCleaner:
-    # Initialize text cleaning component
-    logger.info("Initializing Text Cleaner")
-    text_cleaner = TextCleaner()
-    return text_cleaner
+def get_chunker_pre_cleaner() -> PreTextCleaner:
+    # Initialize pre-cleaning component
+    logger.info("Initializing Pre-Text Cleaner")
+    pre_cleaner = PreTextCleaner()
+    return pre_cleaner
+
+
+@lru_cache()
+def get_chunker_post_cleaner() -> PostTextCleaner:
+    # Initialize post-cleaning component
+    logger.info("Initializing Post-Text Cleaner")
+    post_cleaner = PostTextCleaner()
+    return post_cleaner
 
 
 @lru_cache()
@@ -145,14 +161,16 @@ def get_chunker() -> Chunker:
     # Compose full chunking pipeline from modular components
     logger.info("Initializing Chunker")
     settings = get_settings()
-    cleaner = get_chunker_cleaner()
+    pre_cleaner = get_chunker_pre_cleaner()
+    post_cleaner = get_chunker_post_cleaner()
     validator = get_chunker_validator()
     toc_classifier = get_chunker_toc_classifier()
     splitter = get_chunker_splitter()
     scorer = get_chunk_scorer()
     return Chunker(
         config=settings,
-        cleaner=cleaner,
+        pre_cleaner=pre_cleaner,
+        post_cleaner=post_cleaner,
         validator=validator,
         toc_classifier=toc_classifier,
         splitter=splitter,
@@ -257,19 +275,50 @@ def get_hybrid_retriever(
     )
 
 
-# ---- Optional Composition Helpers ----
-def build_retrievers(
-    db_client: PostgresVectorClient,
-    embedding_model: EmbedModelLoader,
-) -> dict[str, BM25Retriever | VectorRetriever | HybridRetriever]:
-    # Construct all retriever variants in a single composition layer
-    bm25 = get_bm25_retriever(db_client)
-    vector = get_vector_retriever(db_client, embedding_model)
+# ---- Prompt / Generation ----
+def get_prompt_loader() -> PromptLoader:
+    # Initialize prompt loader for managing prompt templates
+    logger.info("Initializing Prompt Loader")
+    prompt_loader = PromptLoader()
+    return prompt_loader
 
-    hybrid = get_hybrid_retriever(bm25, vector)
+def register_prompts() -> PromptRegistry:
+    # Load and register all prompts into a central registry
+    logger.info("Registering prompts")
+    settings = get_settings()
+    registry = PromptRegistry(settings)
+    return registry
 
-    return {
-        "bm25": bm25,
-        "vector": vector,
-        "hybrid": hybrid,
-    }
+def get_llm_json_validator() -> LLMJsonValidator:
+    # Initialize JSON validator for LLM outputs
+    logger.info("Initializing LLM JSON Validator")
+    required_keys = {"summary", "key_points"}
+    allowed_flags = {"SUCCESS_FLAG", "FAIL_FLAG"}
+    validator = LLMJsonValidator(required_keys=required_keys, allowed_flags=allowed_flags)
+    return validator
+
+def get_llm_json_extractor() -> LLMJsonExtractor:
+    # Initialize JSON extractor for LLM outputs
+    logger.info("Initializing LLM JSON Extractor")
+    validator = get_llm_json_validator()
+    extractor = LLMJsonExtractor()
+    return extractor
+
+def get_msg_builder() -> MsgBuilder:
+    # Initialize message builder for constructing LLM prompts
+    logger.info("Initializing Message Builder")
+    prompt_loader = get_prompt_loader()
+    prompt_registry = register_prompts()
+    prompt_validator = get_llm_json_validator()
+    prompt_extractor = get_llm_json_extractor()
+    msg_builder = MsgBuilder(
+        prompt_loader=prompt_loader,
+        registry=prompt_registry,
+        validator=prompt_validator,
+        extractor=prompt_extractor
+    )
+    return msg_builder
+
+
+from src.modules.ingestion.loader.pdf_loader import PDFDocumentLoader2
+from src.modules.ingestion.loader.pdf_loader import PDFDocumentLoader3

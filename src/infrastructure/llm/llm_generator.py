@@ -22,9 +22,34 @@ class LLMGenerator(LLMGeneratorContract):
 
         response = client.chat.completions.create(
             model=model,
-            messages=messages, # type: ignore
+            messages=messages,  # type: ignore
             temperature=temperature,
             max_tokens=max_tokens,
         )
 
         return response.choices[0].message.content or ""
+
+    # ---- Batch Generation (Sequential) ----
+    def generate_batch(
+        self,
+        batch_messages: list[list[dict[str, str]]],
+        temperature: float = 0.0,
+        max_tokens: int = 128,
+    ) -> list[str]:
+        client = self._llm.get_client()
+        model = self._llm.get_model()
+
+        results: list[str] = []
+
+        for messages in batch_messages:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,  # type: ignore
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
+            output = response.choices[0].message.content or ""
+            results.append(output)
+
+        return results

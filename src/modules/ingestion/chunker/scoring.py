@@ -12,19 +12,15 @@ LENGTH_FACTOR_WEIGHT = 0.2
 COMBINE_ALPHA = 0.6
 COMBINE_BETA = 0.4
 
-# ---- Normalization ----
 SENTENCE_SCORE_DIVISOR = 5
 WORD_LENGTH_NORMALIZER = 100
 
-# ---- Domain Boost ----
 MAX_DOMAIN_BOOST = 0.2
 DOMAIN_BOOST_MULTIPLIER = 3
 
-# ---- Sigmoid ----
 SIGMOID_STEEPNESS = 4.0
 SIGMOID_CENTER = 0.5
 
-# ---- Default Domain Vocabulary ----
 DEFAULT_DOMAIN_VOCAB = {
     "income", "expense", "budget", "debt", "saving",
     "investment", "interest", "credit", "loan",
@@ -32,15 +28,12 @@ DEFAULT_DOMAIN_VOCAB = {
     "retirement", "tax", "salary"
 }
 
+
 class ChunkScorer:
     # ---- Init ----
     def __init__(self, *, settings: AppSettings):
-        self.chunk_size = settings.rag.chunk_size
-
-        # ---- Derived ----
+        self.chunk_size = settings.ingestion.chunk_size
         self.length_score_divisor = self.chunk_size
-
-        # ---- Domain ----
         self.domain_vocab: set[str] = set(DEFAULT_DOMAIN_VOCAB)
 
     # ---- Build Domain Vocabulary ----
@@ -51,9 +44,7 @@ class ChunkScorer:
             words.extend(re.findall(r"\b[a-zA-Z]{3,}\b", text.lower()))
 
         counter = Counter(words)
-        most_common = [w for w, _ in counter.most_common(top_k)]
-
-        self.domain_vocab = set(most_common)
+        self.domain_vocab = set([w for w, _ in counter.most_common(top_k)])
 
     # ---- Tokenize ----
     def _tokenize(self, text: str) -> list[str]:

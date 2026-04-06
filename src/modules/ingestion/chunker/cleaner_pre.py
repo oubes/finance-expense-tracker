@@ -3,14 +3,14 @@ import re
 import unicodedata
 
 
-class TextCleaner:
+class PreTextCleaner:
     # ---- Normalize Text ----
     def normalize_text(
         self,
         text: str,
         *,
         lowercase: bool = True,
-        remove_accents: bool = True
+        remove_accents: bool = True,
     ) -> str:
         text = unicodedata.normalize("NFKC", text)
 
@@ -39,20 +39,12 @@ class TextCleaner:
     def remove_special_chars(self, text: str) -> str:
         return re.sub(r"[^\w\s.,;:!?()\-@$%]", "", text)
 
-    # ---- Clean Text Pipeline ----
-    def clean_text(
-        self,
-        text: str,
-        *,
-        lowercase: bool = True,
-        remove_accents: bool = True
-    ) -> str:
-        text = self.normalize_text(
-            text,
-            lowercase=lowercase,
-            remove_accents=remove_accents
-        )
+    # ---- Clean Pipeline (Pre-Split) ----
+    def clean(self, text: str) -> str:
+        if not text or not text.strip():
+            return ""
 
+        text = self.normalize_text(text)
         text = self.normalize_whitespace(text)
         text = self.replace_ampersand(text)
         text = self.remove_special_chars(text)

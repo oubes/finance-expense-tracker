@@ -4,7 +4,7 @@ from pathlib import Path
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 
-from core.contracts.loader.document_loader import DocumentLoaderContract
+from src.core.contracts.loader.document_loader import DocumentLoaderContract
 
 logger = logging.getLogger(__name__)
 

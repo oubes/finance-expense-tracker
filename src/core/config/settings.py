@@ -11,6 +11,10 @@ class LLMConfig(BaseModel):
     temperature: float = 0.0
     max_tokens: int = 256
 
+class ingestionConfig(BaseModel):
+    chunk_size: int
+    chunk_overlap: int
+    prompt_templates_dir: str
 
 class EmbeddingsConfig(BaseModel):
     model: str
@@ -18,8 +22,6 @@ class EmbeddingsConfig(BaseModel):
 
 
 class RAGConfig(BaseModel):
-    chunk_size: int
-    chunk_overlap: int
     top_k_retrieval: int
     top_k_rerank: int
     cross_encoder_model: str
@@ -122,6 +124,7 @@ class AppSettings(BaseSettings):
 
     # ---- Structured configs (from YAML) ----
     llm: LLMConfig
+    ingestion: ingestionConfig
     embeddings: EmbeddingsConfig
     rag: RAGConfig
     vector_db: VectorDBConfig

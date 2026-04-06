@@ -1,5 +1,6 @@
 # ---- Standard Library ----
 import re
+
 # ---- TOC Classifier ----
 from langchain_core.documents import Document
 

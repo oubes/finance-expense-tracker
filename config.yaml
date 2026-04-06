@@ -11,10 +11,13 @@ embeddings:
   model: "text-embedding-v3"
   dimension: 1024
 
-# RAG Settings
-rag:
+ingestion:
   chunk_size: 500
   chunk_overlap: 50
+  prompt_templates_dir: "src/modules/prompts/templates"
+
+# RAG Settings
+rag:
   top_k_retrieval: 5
   top_k_rerank: 3
   cross_encoder_model: "cross-encoder/ms-marco-MiniLM-L-6-v2"

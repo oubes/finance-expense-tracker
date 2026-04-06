@@ -30,13 +30,22 @@ class Embedder(EmbedderContract):
         logger.debug("Single embedding generated")
         return embedding
 
-    # ---- Batch Embedding ----
-    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+    # ---- Batch Embedding (with batching constraint handling) ----
+    def embed_batch(self, texts: list[str], batch_size: int = 10) -> list[list[float]]:
         logger.debug("Embedding batch of size: %d", len(texts))
-        response = self.client.embeddings.create(
-            model=self.model,
-            input=texts
-        )
-        embeddings = [item.embedding for item in response.data]
+
+        all_embeddings: list[list[float]] = []
+
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+
+            response = self.client.embeddings.create(
+                model=self.model,
+                input=batch
+            )
+
+            batch_embeddings = [item.embedding for item in response.data]
+            all_embeddings.extend(batch_embeddings)
+
         logger.debug("Batch embedding completed")
-        return embeddings
+        return all_embeddings
