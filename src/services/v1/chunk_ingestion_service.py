@@ -3,7 +3,7 @@ import logging
 from typing import Any
 
 from pydantic import ValidationError
-from src.pipelines.v1.schemas.ingestion_schema import PipelineOutput
+from src.core.schemas.pipeline.ingestion_schema import PipelineOutput
 
 logger = logging.getLogger(__name__)
 

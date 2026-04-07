@@ -6,7 +6,7 @@ import uuid
 from langchain_core.documents import Document
 from langgraph.graph import StateGraph, START, END
 
-from src.pipelines.v1.schemas.ingestion_schema import PipelineOutput, PipelineMeta
+from src.core.schemas.pipeline.ingestion_schema import PipelineOutput, PipelineMeta
 
 # ---- Logger ----
 logger = logging.getLogger(__name__)
