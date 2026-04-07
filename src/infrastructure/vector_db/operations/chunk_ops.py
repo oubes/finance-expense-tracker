@@ -1,24 +1,16 @@
 # ---- Imports ----
 import logging
 
-from infrastructure.vector_db.queries.chunk_queries import (
-    INSERT_CHUNK_SQL,
-    DELETE_CHUNKS_SQL,
-    COUNT_CHUNKS_SQL,
-    PREVIEW_CHUNKS_SQL,
-    SEARCH_CHUNKS_SQL,
-    CREATE_CHUNKS_TABLE_SQL,
-)
-
 logger = logging.getLogger(__name__)
+from src.core.config.settings import AppSettings
 
 
 # ---- Initialize Chunks Table ----
-# Creates the chunks table with the provided embedding dimension.
-async def init_chunks_table(client, dim: int):
+# Creates the chunks table with injected SQL.
+async def init_chunks_table(client, create_sql: str, config: AppSettings):
     try:
-        create_sql = CREATE_CHUNKS_TABLE_SQL.format(dim=dim)
-        await client.execute(create_sql)
+        sql = create_sql.format(dim=config.embeddings.dimension)
+        await client.execute(sql)
         await client.commit()
         logger.info("Chunks table initialized successfully.")
     except Exception:
@@ -27,12 +19,12 @@ async def init_chunks_table(client, dim: int):
 
 
 # ---- Upsert Chunks ----
-# Inserts chunks and their corresponding embeddings into the database.
-async def upsert_chunks(client, doc_name, chunks, vectors):
+# Inserts chunks using injected SQL.
+async def upsert_chunks(client, insert_sql: str, doc_name: str, chunks, vectors):
     try:
         for i, (chunk, vec) in enumerate(zip(chunks, vectors)):
             await client.execute(
-                INSERT_CHUNK_SQL,
+                insert_sql,
                 (
                     doc_name,
                     chunk["section"],
@@ -51,10 +43,9 @@ async def upsert_chunks(client, doc_name, chunks, vectors):
 
 
 # ---- Delete All Chunks ----
-# Removes all stored chunks from the database.
-async def delete_all_chunks(client):
+async def delete_all_chunks(client, delete_sql: str):
     try:
-        await client.execute(DELETE_CHUNKS_SQL)
+        await client.execute(delete_sql)
         await client.commit()
         logger.info("All chunks deleted successfully.")
     except Exception:
@@ -63,10 +54,9 @@ async def delete_all_chunks(client):
 
 
 # ---- Count Chunks ----
-# Returns the total number of chunks stored in the database.
-async def count_chunks(client):
+async def count_chunks(client, count_sql: str):
     try:
-        result = await client.execute_one(COUNT_CHUNKS_SQL)
+        result = await client.execute_one(count_sql)
         return result[0] if result else 0
     except Exception:
         logger.exception("count_chunks failed.")
@@ -74,11 +64,10 @@ async def count_chunks(client):
 
 
 # ---- Preview Chunks ----
-# Retrieves a limited preview of stored chunks.
-async def preview_chunks(client, limit=10):
+async def preview_chunks(client, preview_sql: str, limit: int = 10):
     try:
         rows = await client.execute(
-            PREVIEW_CHUNKS_SQL,
+            preview_sql,
             (limit,),
             fetch=True,
         )
@@ -89,13 +78,19 @@ async def preview_chunks(client, limit=10):
 
 
 # ---- Search Chunks ----
-# Performs similarity search using query embedding and document filter.
-async def search_chunks(client, query_embedding, doc_name, limit=5):
+async def search_chunks(
+    client,
+    search_sql: str,
+    query_embedding,
+    doc_name: str | None,
+    limit: int = 5,
+):
     try:
         rows = await client.execute(
-            SEARCH_CHUNKS_SQL,
+            search_sql,
             (
                 query_embedding,
+                doc_name,
                 doc_name,
                 query_embedding,
                 limit,
