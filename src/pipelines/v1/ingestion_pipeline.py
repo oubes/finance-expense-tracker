@@ -7,6 +7,7 @@ from langchain_core.documents import Document
 from langgraph.graph import StateGraph, START, END
 
 from src.core.schemas.pipeline.ingestion_schema import PipelineOutput, PipelineMeta
+from src.shared.graph_builder import GraphSaver
 
 # ---- Logger ----
 logger = logging.getLogger(__name__)
@@ -66,8 +67,8 @@ class IngestionPipeline:
         self.json_validator = json_validator
 
         # ---- Config extraction ----
-        self.doc_name = config.ingestion.doc_name
-        self.score_threshold = config.ingestion.score_filter_threshold
+        self.doc_name = "Ai System Design Competition.pdf"
+        self.score_threshold = 0.5
 
         # ---- Validation config (inline) ----
         self.required_keys = {"title", "summary", "flag"}
@@ -108,6 +109,9 @@ class IngestionPipeline:
         self.graph.add_edge("final_aggregation", END)
 
         self.compiled = self.graph.compile()
+        
+        self.graph_saver = GraphSaver(filename="ingestion_pipeline.png")
+        self.graph_saver.save(self.compiled)
 
     # ---- Nodes ----
 

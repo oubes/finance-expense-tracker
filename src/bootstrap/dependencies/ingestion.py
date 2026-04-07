@@ -120,7 +120,7 @@ def get_ingestion_pipeline(
 
 
 # ---- Ingestion Service ----
-async def get_ingestion_service(
+async def get_db_ingestion_service(
     db_client: PostgresVectorClient = Depends(get_db_client),
 ) -> ChunkIngestionService:
     logger.info("Initializing Ingestion Service")

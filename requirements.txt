@@ -17,3 +17,4 @@ langgraph==1.1.4
 --extra-index-url https://download.pytorch.org/whl/cu121
 torch==2.11.0
 sentence-transformers==5.3.0
+ipython==9.12.0
