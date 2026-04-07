@@ -1,7 +1,8 @@
 # ---- Imports ----
 from pydantic import BaseModel, Field
 from typing import Any
-from langchain_core.documents import Document
+from uuid import UUID
+from datetime import datetime
 
 
 # ---- Summary Schema ----
@@ -37,7 +38,45 @@ class PipelineMeta(BaseModel):
     count: int
 
 
-# ---- Final Pipeline Output ----
+# ---- Nested Metadata ----
+class ChunkMetadata(BaseModel):
+    page_label: str | None = None
+
+
+# ---- Main DB Record ----
 class PipelineOutput(BaseModel):
-    data: list[DocumentItem]
-    meta: PipelineMeta
+    # ---- IDs ----
+    id: UUID
+    doc_id: str
+    chunk_id: UUID
+
+    # ---- Core Retrieval ----
+    content: str
+    summary: str
+
+    # ---- Semantic Labels ----
+    chunk_title: str
+    section: str
+
+    # ---- Document Context ----
+    doc_title: str
+    source: str
+
+    # ---- Position ----
+    page: int | None = None
+    total_pages: int | None = None
+
+    # ---- Optional ----
+    tags: list[str] | None = None
+
+    # ---- Metadata ----
+    metadata: ChunkMetadata
+
+    # ---- System ----
+    created_at: datetime
+    
+    # ---- Pipeline Metadata ----
+    pipeline_version: str
+    
+    # ---- Embedding ----
+    embedding: list[float]

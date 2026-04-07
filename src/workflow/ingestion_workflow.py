@@ -10,15 +10,15 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-# ---- State Definition ----
+# ---- State ----
 class IngestionState(TypedDict):
-    pipeline_output: PipelineOutput | None
+    pipeline_output: list[PipelineOutput] | None
     table_empty: bool | None
     overwrite: bool
     db_write_result: Any | None
 
 
-# ---- Orchestrator ----
+# ---- Workflow ----
 class IngestionWorkflow:
 
     def __init__(
@@ -30,6 +30,7 @@ class IngestionWorkflow:
         delete_fn,
         count_fn,
     ) -> None:
+
         self.pipeline = pipeline
         self.db_client = db_client
         self.init_table_fn = init_table_fn
@@ -41,7 +42,7 @@ class IngestionWorkflow:
         self._build_graph()
         self.graph_saver = GraphSaver("ingestion_workflow.png")
 
-    # ---- Graph Builder ----
+    # ---- Graph ----
     def _build_graph(self) -> None:
         self.graph.add_node("init_table", self.init_table_node)
         self.graph.add_node("check_empty", self.check_empty_node)
@@ -58,28 +59,19 @@ class IngestionWorkflow:
         self.graph.add_conditional_edges(
             "check_empty",
             self.route_empty,
-            {
-                "empty": "run_pipeline",
-                "not_empty": "decide_overwrite",
-            },
+            {"empty": "run_pipeline", "not_empty": "decide_overwrite"},
         )
 
         self.graph.add_conditional_edges(
             "decide_overwrite",
             self.route_overwrite,
-            {
-                "true": "run_pipeline",
-                "false": END,
-            },
+            {"true": "run_pipeline", "false": END},
         )
 
         self.graph.add_conditional_edges(
             "run_pipeline",
             self.route_after_pipeline,
-            {
-                "upsert_only": "upsert_only",
-                "delete_and_upsert": "delete_and_upsert",
-            },
+            {"upsert_only": "upsert_only", "delete_and_upsert": "delete_and_upsert"},
         )
 
         self.graph.add_edge("upsert_only", END)
@@ -97,176 +89,46 @@ class IngestionWorkflow:
     def route_after_pipeline(self, state: IngestionState) -> str:
         return "delete_and_upsert" if state.get("overwrite") else "upsert_only"
 
-    # ---- Helpers ----
-    def _safe_dict(self, obj: Any) -> dict:
-        """Safely extract dict from pydantic or object."""
-        if obj is None:
-            return {}
-        if hasattr(obj, "model_dump"):
-            return obj.model_dump()
-        if hasattr(obj, "dict"):
-            return obj.dict()
-        if isinstance(obj, dict):
-            return obj
-        return vars(obj)
-
-    def _build_metadata(self, item) -> dict:
-        """
-        Merge ALL available metadata sources into a single unified structure.
-        """
-
-        try:
-            base_metadata = self._safe_dict(getattr(item, "metadata", {}))
-            document_meta = self._safe_dict(getattr(item, "document", None))
-            content_meta = self._safe_dict(getattr(item, "content", None))
-
-            summary_meta = {}
-            if item.content and getattr(item.content, "summary", None):
-                summary_meta = self._safe_dict(item.content.summary)
-
-            vector_meta = {"vector": item.vector} if hasattr(item, "vector") else {}
-
-            raw_meta = self._safe_dict(item)
-
-            # ---- Deep Merge (flat union with precedence) ----
-            merged = {
-                **base_metadata,
-                **document_meta,
-                **content_meta,
-                **summary_meta,
-                **vector_meta,
-                **raw_meta,
-            }
-
-            return merged
-
-        except Exception as e:
-            logger.warning(f"Metadata merge failure: {e}")
-            return {"raw": self._safe_dict(item)}
-
     # ---- Nodes ----
 
     async def init_table_node(self, state: IngestionState) -> IngestionState:
-        try:
-            logger.info("Init table started")
-            await self.init_table_fn()
-            logger.info("Init table success")
-        except Exception:
-            logger.exception("Init table failed")
-            raise
+        await self.init_table_fn()
         return state
 
     async def check_empty_node(self, state: IngestionState) -> IngestionState:
-        try:
-            logger.info("Checking if table is empty")
-            count = await self.count_fn()
-            state["table_empty"] = count == 0
-            logger.info(f"Table empty: {state['table_empty']}")
-        except Exception:
-            logger.exception("Check empty failed")
-            raise
+        count = await self.count_fn()
+        state["table_empty"] = count == 0
         return state
 
     async def run_pipeline_node(self, state: IngestionState) -> IngestionState:
-        try:
-            logger.info("Running pipeline")
-            result_state = await self.pipeline.run()
-            output = result_state.get("final_pipeline_output")
-            state["pipeline_output"] = output[0] if output else None
-            logger.info("Pipeline completed successfully")
-        except Exception:
-            logger.exception("Pipeline execution failed")
-            raise
+        result = await self.pipeline.run()
+        state["pipeline_output"] = result.get("final_pipeline_output")
         return state
 
     async def upsert_only_node(self, state: IngestionState) -> IngestionState:
-        try:
-            logger.info("Upsert only started")
+        records = state.get("pipeline_output") or []
 
-            pipeline_output = state.get("pipeline_output")
-            if not pipeline_output:
-                logger.warning("No pipeline output, skipping upsert")
-                return state
+        if not records:
+            return state
 
-            data = pipeline_output.data
-            doc_name = data[0].document.title if data else "default"
+        await self.upsert_fn(records=records)
 
-            chunks = []
-            vectors = []
-
-            for item in data:
-                metadata = self._build_metadata(item)
-
-                chunks.append({
-                    "section": item.content.summary.title if item.content and item.content.summary else "unknown",
-                    "content": item.content.text if item.content else "",
-                    "metadata": metadata,
-                })
-
-                vectors.append(item.vector)
-
-            await self.upsert_fn(
-                doc_name=doc_name,
-                chunks=chunks,
-                vectors=vectors,
-            )
-
-            state["db_write_result"] = "upsert_only_done"
-            logger.info("Upsert only completed successfully")
-
-        except Exception:
-            logger.exception("Upsert only failed")
-            raise
-
+        state["db_write_result"] = "upsert_only_done"
         return state
 
     async def delete_and_upsert_node(self, state: IngestionState) -> IngestionState:
-        try:
-            logger.info("Delete and upsert started")
+        await self.delete_fn()
 
-            await self.delete_fn()
-            logger.info("Delete completed")
+        records = state.get("pipeline_output") or []
+        if not records:
+            return state
 
-            pipeline_output = state.get("pipeline_output")
-            if not pipeline_output:
-                logger.warning("No pipeline output, skipping upsert")
-                return state
+        await self.upsert_fn(records=records)
 
-            data = pipeline_output.data
-            doc_name = data[0].document.title if data else "default"
-
-            chunks = []
-            vectors = []
-
-            for item in data:
-                metadata = self._build_metadata(item)
-
-                chunks.append({
-                    "section": item.content.summary.title if item.content and item.content.summary else "unknown",
-                    "content": item.content.text if item.content else "",
-                    "metadata": metadata,
-                })
-
-                vectors.append(item.vector)
-
-            await self.upsert_fn(
-                doc_name=doc_name,
-                chunks=chunks,
-                vectors=vectors,
-            )
-
-            state["db_write_result"] = "delete_and_upsert_done"
-            logger.info("Delete and upsert completed successfully")
-
-        except Exception:
-            logger.exception("Delete and upsert failed")
-            raise
-
+        state["db_write_result"] = "delete_and_upsert_done"
         return state
 
     async def decide_overwrite_node(self, state: IngestionState) -> IngestionState:
-        overwrite = state.get("overwrite", False)
-        logger.info(f"Overwrite decision: {overwrite}")
         return state
 
     # ---- Runner ----
@@ -278,14 +140,5 @@ class IngestionWorkflow:
             "db_write_result": None,
         }
 
-        logger.info(f"Workflow started with overwrite={overwrite}")
-
         self.graph_saver.save(self.compiled)
-
-        try:
-            result = await self.compiled.ainvoke(initial_state)  # type: ignore
-            logger.info("Workflow completed successfully")
-            return result  # type: ignore
-        except Exception:
-            logger.exception("Workflow execution failed")
-            raise
+        return await self.compiled.ainvoke(initial_state)  # type: ignore

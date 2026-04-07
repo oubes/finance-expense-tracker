@@ -1,115 +1,103 @@
 # ---- Imports ----
 import logging
-
-logger = logging.getLogger(__name__)
-from src.core.config.settings import AppSettings
+from typing import Any
 from psycopg.types.json import Json
 
+logger = logging.getLogger(__name__)
 
-# ---- Initialize Chunks Table ----
-# Creates the chunks table with injected SQL.
-async def init_chunks_table(client, create_sql: str, config: AppSettings):
+
+# ---- Helpers ----
+def _get(obj: Any, key: str) -> Any:
+    """Safely extract a value from dict or object"""
+    if isinstance(obj, dict):
+        return obj.get(key)
+    if hasattr(obj, key):
+        return getattr(obj, key)
+    raise KeyError(f"Missing key/attribute: {key}")
+
+
+# ---- Init Table ----
+async def init_chunks_table(client, create_sql: str, config):
     try:
         sql = create_sql.format(dim=config.embeddings.dimension)
         await client.execute(sql)
         await client.commit()
-        logger.info("Chunks table initialized successfully.")
+        logger.info("Chunks table initialized.")
     except Exception:
-        logger.exception("init_chunks_table failed.")
+        logger.exception("init_chunks_table failed")
         raise
 
 
-
-
-# ---- Upsert Chunks ----
-async def upsert_chunks(client, insert_sql: str, doc_name: str, chunks, vectors):
+# ---- Generic Upsert ----
+async def upsert_chunks(client, insert_sql: str, records: list[Any]):
     try:
-        for i, (chunk, vec) in enumerate(zip(chunks, vectors)):
-
-            # ---- Build ID ----
-            chunk_id = f"{doc_name}:{i}"
-
-            # ---- Metadata ----
-            metadata = {
-                "doc_title": doc_name,
-                "section": chunk["section"],
-                "chunk_index": i,
-            }
-
-            # ---- Params (STRICT) ----
+        for r in records:
             params = (
-                chunk_id,
-                vec,
-                chunk["content"],
-                Json(metadata),
+                _get(r, "id"),
+                _get(r, "doc_id"),
+                _get(r, "chunk_id"),
+                _get(r, "content"),
+                _get(r, "summary"),
+                _get(r, "embedding"),
+                _get(r, "chunk_title"),
+                _get(r, "section"),
+                _get(r, "doc_title"),
+                _get(r, "source"),
+                _get(r, "page"),
+                _get(r, "total_pages"),
+                _get(r, "tags"),
+                Json(_get(r, "metadata") or {}),
+                _get(r, "created_at"),
+                _get(r, "pipeline_version"),
             )
 
             await client.execute(insert_sql, params)
 
         await client.commit()
-        logger.info(f"Upserted {len(chunks)} chunks for doc: {doc_name}")
+        logger.info(f"Upserted {len(records)} records")
 
     except Exception:
-        logger.exception("upsert_chunks failed.")
+        logger.exception("upsert_chunks failed")
         raise
 
 
-# ---- Delete All Chunks ----
+# ---- Delete ----
 async def delete_all_chunks(client, delete_sql: str):
     try:
         await client.execute(delete_sql)
         await client.commit()
-        logger.info("All chunks deleted successfully.")
     except Exception:
-        logger.exception("delete_all_chunks failed.")
+        logger.exception("delete_all_chunks failed")
         raise
 
 
-# ---- Count Chunks ----
+# ---- Count ----
 async def count_chunks(client, count_sql: str):
     try:
         result = await client.execute_one(count_sql)
         return result[0] if result else 0
     except Exception:
-        logger.exception("count_chunks failed.")
+        logger.exception("count_chunks failed")
         return 0
 
 
-# ---- Preview Chunks ----
+# ---- Preview ----
 async def preview_chunks(client, preview_sql: str, limit: int = 10):
     try:
-        rows = await client.execute(
-            preview_sql,
-            (limit,),
-            fetch=True,
-        )
-        return rows or []
+        return await client.execute(preview_sql, (limit,), fetch=True)
     except Exception:
-        logger.exception("preview_chunks failed.")
+        logger.exception("preview_chunks failed")
         return []
 
 
-# ---- Search Chunks ----
-async def search_chunks(
-    client,
-    search_sql: str,
-    query_embedding,
-    doc_name: str | None,
-    limit: int = 5,
-):
+# ---- Search ----
+async def search_chunks(client, search_sql: str, query_embedding, doc_name, limit):
     try:
-        rows = await client.execute(
+        return await client.execute(
             search_sql,
-            (
-                query_embedding,
-                doc_name,
-                doc_name,
-                query_embedding,
-                limit,
-            ),
+            (doc_name, doc_name, query_embedding, limit),
             fetch=True,
         )
-        return rows or []
     except Exception:
-        logger.exception("search_chunks failed.")
+        logger.exception("search_chunks failed")
         return []

@@ -2,12 +2,19 @@
 from typing import TypedDict, Any
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from langchain_core.documents import Document
 from langgraph.graph import StateGraph, START, END
 
-from src.core.schemas.pipeline.ingestion_schema import PipelineOutput, PipelineMeta
+from src.core.schemas.pipeline.ingestion_schema import (
+    PipelineOutput,
+    PipelineMeta,
+    ChunkMetadata
+)
+
 from src.shared.graph_builder import GraphSaver
+
 
 # ---- Logger ----
 logger = logging.getLogger(__name__)
@@ -27,6 +34,7 @@ class IngestionState(TypedDict):
     generated_summaries_raw: list[dict] | None
     extracted_summaries_json: list[dict] | None
     validated_summaries: list[dict] | None
+    collected_summaries: list[dict] | None
 
     embeddings: list[dict] | None
     final_pipeline_output: list[PipelineOutput] | None
@@ -34,7 +42,6 @@ class IngestionState(TypedDict):
 
 # ---- Utility ----
 def attach_chunk_ids(chunks: list[dict]) -> list[dict]:
-    logger.debug("Attaching chunk IDs")
     for c in chunks:
         c["chunk_id"] = str(uuid.uuid4())
     return chunks
@@ -66,11 +73,11 @@ class IngestionPipeline:
         self.json_extractor = json_extractor
         self.json_validator = json_validator
 
-        # ---- Config extraction ----
-        self.doc_name = "Ai System Design Competition.pdf"
-        self.score_threshold = 0.5
+        # ---- Config ----
+        self.doc_name = config.ingestion.doc_name
+        self.score_threshold = config.ingestion.score_filter_threshold
 
-        # ---- Validation config ----
+        # ---- Validation ----
         self.required_keys = {"title", "summary", "flag"}
         self.allowed_flags = {"SUCCESS_FLAG"}
 
@@ -168,6 +175,8 @@ class IngestionPipeline:
         ]
         return state
 
+    # ---- Summarization ----
+
     def summarization_msg_builder_node(self, state: IngestionState) -> IngestionState:
         if not state["filtered_chunks"]:
             return state
@@ -196,39 +205,35 @@ class IngestionPipeline:
         if not state["summarization_messages"]:
             return state
 
-        outputs = []
-        for msg in state["summarization_messages"]:
-            outputs.append({
+        state["generated_summaries_raw"] = [
+            {
                 "chunk_id": msg["chunk_id"],
                 "data": self.llm_generator.generate(msg["data"])
-            })
-
-        state["generated_summaries_raw"] = outputs
+            }
+            for msg in state["summarization_messages"]
+        ]
         return state
 
     def summarization_extract_node(self, state: IngestionState) -> IngestionState:
         if not state["generated_summaries_raw"]:
             return state
 
-        extracted_raw = self.json_extractor.extract_batch(
+        extracted = self.json_extractor.extract_batch(
             [r["data"] for r in state["generated_summaries_raw"]]
         )
 
         state["extracted_summaries_json"] = [
-            {"chunk_id": state["generated_summaries_raw"][i]["chunk_id"], "data": extracted_raw[i]}
-            for i in range(len(extracted_raw))
+            {"chunk_id": state["generated_summaries_raw"][i]["chunk_id"], "data": extracted[i]}
+            for i in range(len(extracted))
         ]
-
         return state
 
     def summarization_validate_node(self, state: IngestionState) -> IngestionState:
         if not state["extracted_summaries_json"]:
             return state
 
-        extracted_data = [e["data"] for e in state["extracted_summaries_json"]]
-
-        validated_raw = self.json_validator.validate_batch(
-            extracted_data,
+        validated = self.json_validator.validate_batch(
+            [e["data"] for e in state["extracted_summaries_json"]],
             required_keys=self.required_keys,
             allowed_flags=self.allowed_flags
         )
@@ -236,81 +241,89 @@ class IngestionPipeline:
         state["validated_summaries"] = [
             {
                 "chunk_id": state["extracted_summaries_json"][i]["chunk_id"],
-                "data": validated_raw[i]["data"],
-                "state": validated_raw[i]["state"]
+                "data": validated[i]["data"],
+                "state": validated[i]["state"]
             }
-            for i in range(len(validated_raw))
+            for i in range(len(validated))
         ]
-
         return state
 
     def summarization_collect_node(self, state: IngestionState) -> IngestionState:
         if not state["validated_summaries"]:
             return state
 
-        state["final_pipeline_output"] = [
+        state["collected_summaries"] = [
             v for v in state["validated_summaries"] if v["state"]
         ]
-
         return state
 
+    # ---- Embedding ----
     def embedding_node(self, state: IngestionState) -> IngestionState:
-        if not state["filtered_chunks"]:
+        if not state["collected_summaries"]:
             return state
 
-        texts = [c["content"]["text"] for c in state["filtered_chunks"]]
-        embeddings = self.embedding.embed_batch(texts)
+        texts = [s["data"]["summary"] for s in state["collected_summaries"]]
+        vectors = self.embedding.embed_batch(texts)
 
         state["embeddings"] = [
-            {"chunk_id": state["filtered_chunks"][i]["chunk_id"], "vector": embeddings[i]}
-            for i in range(len(embeddings))
+            {"chunk_id": state["collected_summaries"][i]["chunk_id"], "vector": vectors[i]}
+            for i in range(len(vectors))
         ]
-
         return state
 
+    # ---- Final Aggregation (DB READY) ----
     def final_aggregation_node(self, state: IngestionState) -> IngestionState:
-        if not state["final_pipeline_output"]:
+        if not state["collected_summaries"]:
             return state
 
-        summaries = state["final_pipeline_output"] or []
+        summaries = state["collected_summaries"]
         embeddings = state.get("embeddings") or []
-        filtered_chunks = state.get("filtered_chunks") or []
+        chunks = state.get("filtered_chunks") or []
 
         summary_map = {s["chunk_id"]: s["data"] for s in summaries}
         embedding_map = {e["chunk_id"]: e["vector"] for e in embeddings}
-        metadata_map = {c["chunk_id"]: c.get("metadata", {}) for c in filtered_chunks}
-        document_map = {c["chunk_id"]: c.get("document", {}) for c in filtered_chunks}
-        content_map = {c["chunk_id"]: c.get("content", {}) for c in filtered_chunks}
+        chunk_map = {c["chunk_id"]: c for c in chunks}
 
-        documents = []
+        records: list[PipelineOutput] = []
 
-        for cid in summary_map:
-            summary = summary_map[cid]
-            title = summary.get("title", "")
+        for cid, summary in summary_map.items():
+            chunk = chunk_map.get(cid, {})
+            metadata = chunk.get("metadata", {})
+            content = chunk.get("content", {})
+            document = chunk.get("document", {})
 
-            documents.append({
-                "document": document_map.get(cid),
-                "content": {
-                    **content_map.get(cid, {}),
-                    "title": title,
-                    "summary": summary
-                },
-                "vector": embedding_map.get(cid),
-                "metadata": {
-                    **metadata_map.get(cid, {}),
-                    "title": title
-                }
-            })
+            record = PipelineOutput(
+                id=uuid.uuid4(),
+                doc_id=document.get("title", ""),
+                chunk_id=uuid.UUID(cid),
 
-        pipeline_output = PipelineOutput(
-            data=documents,
-            meta=PipelineMeta(
-                pipeline_version=PIPELINE_VERSION,
-                count=len(documents)
+                content=content.get("text", ""),
+                summary=summary.get("summary", ""),
+
+                chunk_title=summary.get("title", ""),
+                section=summary.get("title", ""),
+
+                doc_title=document.get("title", ""),
+                source=metadata.get("source", ""),
+
+                page=metadata.get("page"),
+                total_pages=metadata.get("total_pages"),
+
+                tags=None,
+
+                embedding=embedding_map.get(cid, []),
+                
+                metadata=ChunkMetadata(
+                    page_label=metadata.get("page_label")
+                ),
+
+                created_at=datetime.now(timezone.utc),
+                pipeline_version=PIPELINE_VERSION
             )
-        )
 
-        state["final_pipeline_output"] = [pipeline_output]
+            records.append(record)
+
+        state["final_pipeline_output"] = records
         return state
 
     # ---- Runner ----
@@ -323,8 +336,9 @@ class IngestionPipeline:
             "generated_summaries_raw": None,
             "extracted_summaries_json": None,
             "validated_summaries": None,
-            "final_pipeline_output": None,
+            "collected_summaries": None,
             "embeddings": None,
+            "final_pipeline_output": None,
         }
 
         self.graph_saver.save(self.compiled)
