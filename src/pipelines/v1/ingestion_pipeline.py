@@ -111,7 +111,6 @@ class IngestionPipeline:
         self.compiled = self.graph.compile()
         
         self.graph_saver = GraphSaver(filename="ingestion_pipeline.png")
-        self.graph_saver.save(self.compiled)
 
     # ---- Nodes ----
 
@@ -321,5 +320,6 @@ class IngestionPipeline:
             "summary": None,
             "embeddings": None,
         }
-
+        self.graph_saver.save(self.compiled)
+        logging.info("=========> Starting pipeline execution pla pla <=========")
         return self.compiled.invoke(initial_state)  # type: ignore
