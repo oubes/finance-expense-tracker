@@ -52,7 +52,6 @@ class IngestionWorkflow:
 
         self.graph.add_node("decide_overwrite", self.decide_overwrite_node)
 
-        # ---- Entry Flow ----
         self.graph.add_edge(START, "init_table")
         self.graph.add_edge("init_table", "check_empty")
 
@@ -65,7 +64,6 @@ class IngestionWorkflow:
             },
         )
 
-        # ---- Overwrite Decision ----
         self.graph.add_conditional_edges(
             "decide_overwrite",
             self.route_overwrite,
@@ -75,7 +73,6 @@ class IngestionWorkflow:
             },
         )
 
-        # ---- Pipeline Output Routing (FIXED) ----
         self.graph.add_conditional_edges(
             "run_pipeline",
             self.route_after_pipeline,
@@ -85,7 +82,6 @@ class IngestionWorkflow:
             },
         )
 
-        # ---- Terminal Nodes ----
         self.graph.add_edge("upsert_only", END)
         self.graph.add_edge("delete_and_upsert", END)
 
@@ -100,6 +96,53 @@ class IngestionWorkflow:
 
     def route_after_pipeline(self, state: IngestionState) -> str:
         return "delete_and_upsert" if state.get("overwrite") else "upsert_only"
+
+    # ---- Helpers ----
+    def _safe_dict(self, obj: Any) -> dict:
+        """Safely extract dict from pydantic or object."""
+        if obj is None:
+            return {}
+        if hasattr(obj, "model_dump"):
+            return obj.model_dump()
+        if hasattr(obj, "dict"):
+            return obj.dict()
+        if isinstance(obj, dict):
+            return obj
+        return vars(obj)
+
+    def _build_metadata(self, item) -> dict:
+        """
+        Merge ALL available metadata sources into a single unified structure.
+        """
+
+        try:
+            base_metadata = self._safe_dict(getattr(item, "metadata", {}))
+            document_meta = self._safe_dict(getattr(item, "document", None))
+            content_meta = self._safe_dict(getattr(item, "content", None))
+
+            summary_meta = {}
+            if item.content and getattr(item.content, "summary", None):
+                summary_meta = self._safe_dict(item.content.summary)
+
+            vector_meta = {"vector": item.vector} if hasattr(item, "vector") else {}
+
+            raw_meta = self._safe_dict(item)
+
+            # ---- Deep Merge (flat union with precedence) ----
+            merged = {
+                **base_metadata,
+                **document_meta,
+                **content_meta,
+                **summary_meta,
+                **vector_meta,
+                **raw_meta,
+            }
+
+            return merged
+
+        except Exception as e:
+            logger.warning(f"Metadata merge failure: {e}")
+            return {"raw": self._safe_dict(item)}
 
     # ---- Nodes ----
 
@@ -152,11 +195,14 @@ class IngestionWorkflow:
             vectors = []
 
             for item in data:
+                metadata = self._build_metadata(item)
+
                 chunks.append({
-                    "section": item.content.summary.title,
-                    "content": item.content.text,
-                    "metadata": item.dict() if hasattr(item, "dict") else str(item),
+                    "section": item.content.summary.title if item.content and item.content.summary else "unknown",
+                    "content": item.content.text if item.content else "",
+                    "metadata": metadata,
                 })
+
                 vectors.append(item.vector)
 
             await self.upsert_fn(
@@ -193,11 +239,14 @@ class IngestionWorkflow:
             vectors = []
 
             for item in data:
+                metadata = self._build_metadata(item)
+
                 chunks.append({
-                    "section": item.content.summary.title,
-                    "content": item.content.text,
-                    "metadata": item.dict() if hasattr(item, "dict") else str(item),
+                    "section": item.content.summary.title if item.content and item.content.summary else "unknown",
+                    "content": item.content.text if item.content else "",
+                    "metadata": metadata,
                 })
+
                 vectors.append(item.vector)
 
             await self.upsert_fn(
@@ -221,7 +270,7 @@ class IngestionWorkflow:
         return state
 
     # ---- Runner ----
-    async def run(self, overwrite: bool = False) -> IngestionState:
+    async def run(self, overwrite: bool = True) -> IngestionState:
         initial_state: IngestionState = {
             "pipeline_output": None,
             "table_empty": None,
