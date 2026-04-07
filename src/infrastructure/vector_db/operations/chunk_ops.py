@@ -3,6 +3,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 from src.core.config.settings import AppSettings
+from psycopg.types.json import Json
 
 
 # ---- Initialize Chunks Table ----
@@ -18,21 +19,32 @@ async def init_chunks_table(client, create_sql: str, config: AppSettings):
         raise
 
 
+
+
 # ---- Upsert Chunks ----
-# Inserts chunks using injected SQL.
 async def upsert_chunks(client, insert_sql: str, doc_name: str, chunks, vectors):
     try:
         for i, (chunk, vec) in enumerate(zip(chunks, vectors)):
-            await client.execute(
-                insert_sql,
-                (
-                    doc_name,
-                    chunk["section"],
-                    i,
-                    chunk["content"],
-                    vec,
-                ),
+
+            # ---- Build ID ----
+            chunk_id = f"{doc_name}:{i}"
+
+            # ---- Metadata ----
+            metadata = {
+                "doc_title": doc_name,
+                "section": chunk["section"],
+                "chunk_index": i,
+            }
+
+            # ---- Params (STRICT) ----
+            params = (
+                chunk_id,
+                vec,
+                chunk["content"],
+                Json(metadata),
             )
+
+            await client.execute(insert_sql, params)
 
         await client.commit()
         logger.info(f"Upserted {len(chunks)} chunks for doc: {doc_name}")

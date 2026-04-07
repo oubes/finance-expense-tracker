@@ -29,7 +29,7 @@ class IngestionState(TypedDict):
     validated_summaries: list[dict] | None
 
     embeddings: list[dict] | None
-    final_pipeline_output: list[dict] | None
+    final_pipeline_output: list[PipelineOutput] | None
 
 
 # ---- Utility ----
@@ -70,7 +70,7 @@ class IngestionPipeline:
         self.doc_name = "Ai System Design Competition.pdf"
         self.score_threshold = 0.5
 
-        # ---- Validation config (inline) ----
+        # ---- Validation config ----
         self.required_keys = {"title", "summary", "flag"}
         self.allowed_flags = {"SUCCESS_FLAG"}
 
@@ -109,7 +109,6 @@ class IngestionPipeline:
         self.graph.add_edge("final_aggregation", END)
 
         self.compiled = self.graph.compile()
-        
         self.graph_saver = GraphSaver(filename="ingestion_pipeline.png")
 
     # ---- Nodes ----
@@ -287,8 +286,6 @@ class IngestionPipeline:
 
         for cid in summary_map:
             summary = summary_map[cid]
-
-            # ---- CRITICAL FIX: use LLM title ----
             title = summary.get("title", "")
 
             documents.append({
@@ -313,11 +310,11 @@ class IngestionPipeline:
             )
         )
 
-        state["final_pipeline_output"] = [pipeline_output.model_dump()]
+        state["final_pipeline_output"] = [pipeline_output]
         return state
 
     # ---- Runner ----
-    def run(self) -> IngestionState:
+    async def run(self) -> IngestionState:
         initial_state: IngestionState = {
             "source_documents": None,
             "chunked_documents": None,
@@ -329,5 +326,6 @@ class IngestionPipeline:
             "final_pipeline_output": None,
             "embeddings": None,
         }
+
         self.graph_saver.save(self.compiled)
-        return self.compiled.invoke(initial_state)  # type: ignore
+        return await self.compiled.ainvoke(initial_state)  # type: ignore

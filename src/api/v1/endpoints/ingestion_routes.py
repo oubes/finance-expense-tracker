@@ -1,10 +1,6 @@
 # ---- Imports ----
 import logging
-
-# ---- FastAPI ----
 from fastapi import APIRouter, Depends
-
-# ---- Pipeline ----
 from src.bootstrap.dependencies.ingestion import get_ingestion_workflow_entrypoint
 
 # ---- Logger ----
@@ -16,12 +12,12 @@ router = APIRouter()
 
 # ---- Run Ingestion Workflow ----
 @router.post("/run")
-def run_ingestion_workflow(
+async def run_ingestion_workflow(
     workflow = Depends(get_ingestion_workflow_entrypoint),
 ):
     logger.info("Starting ingestion workflow execution")
 
-    result = workflow.run()
+    result = await workflow.run()
 
     logger.info("Ingestion workflow execution completed")
 

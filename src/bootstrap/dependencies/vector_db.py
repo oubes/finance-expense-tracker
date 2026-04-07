@@ -33,30 +33,34 @@ from src.infrastructure.vector_db.operations.chunk_ops import (
 logger = logging.getLogger(__name__)
 
 
-# ---- DB Connection ----
-async def get_db_connection(settings: AppSettings = Depends(get_settings)) -> DBConnect:
+# ---- DB Connection (Single Source of Truth) ----
+async def get_db_connection(
+    settings: AppSettings = Depends(get_settings),
+) -> DBConnect:
     logger.info("Creating DB connection")
 
     conn = DBConnect(settings=settings)
 
-    if hasattr(conn, "connect") and callable(conn.connect):
-        result = conn.connect()
-        if hasattr(result, "__await__"):
-            await result
-        else:
-            await conn.connect()
+    await conn.connect()
 
-    return conn
+    try:
+        yield conn
+    finally:
+        await conn.close()
 
 
 # ---- DB Executor ----
-async def get_db_executor(conn: DBConnect = Depends(get_db_connection)) -> DBExecutor:
+async def get_db_executor(
+    conn: DBConnect = Depends(get_db_connection),
+) -> DBExecutor:
     logger.info("Creating DB executor")
     return DBExecutor(conn)
 
 
 # ---- Vector Extension ----
-async def get_vector_extension(conn: DBConnect = Depends(get_db_connection)) -> VectorExtension:
+async def get_vector_extension(
+    conn: DBConnect = Depends(get_db_connection),
+) -> VectorExtension:
     logger.info("Creating Vector Extension")
 
     vector_ext = VectorExtension(conn.conn)
@@ -70,7 +74,7 @@ async def get_db_client(
     conn: DBConnect = Depends(get_db_connection),
     executor: DBExecutor = Depends(get_db_executor),
     vector_ext: VectorExtension = Depends(get_vector_extension),
-) -> PostgresVectorClient:
+):
     logger.info("Creating PostgresVectorClient")
 
     client = PostgresVectorClient(
@@ -85,8 +89,6 @@ async def get_db_client(
 
     return client
 
-
-# ---- Chunk Operations Wrappers ----
 
 # ---- Chunk Operations Wrappers ----
 

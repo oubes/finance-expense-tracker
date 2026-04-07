@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS chunk_embeddings (
     id TEXT PRIMARY KEY,
     vector VECTOR({dim}) NOT NULL,
     text TEXT NOT NULL,
-    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    metadata JSONB NOT NULL DEFAULT '{{}}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
