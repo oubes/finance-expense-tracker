@@ -13,23 +13,10 @@ class Splitter:
         self.chunk_size = settings.ingestion.chunk_size
         self.chunk_overlap = settings.ingestion.chunk_overlap
 
-        self.length_function = self._build_length_function()
+        # ---- Length function (pure character-based) ----
+        self.length_function = len
+
         self._splitter = self._build_splitter()
-
-    # ---- Build Length Function (Token-aware optional) ----
-    def _build_length_function(self) -> Callable[[str], int]:
-        try:
-            from transformers import AutoTokenizer
-
-            tokenizer = AutoTokenizer.from_pretrained("gpt2")
-
-            def token_length(text: str) -> int:
-                return len(tokenizer.encode(text))
-
-            return token_length
-
-        except Exception:
-            return len
 
     # ---- Build Splitter ----
     def _build_splitter(self) -> RecursiveCharacterTextSplitter:

@@ -47,7 +47,6 @@ class ChunkMetadata(BaseModel):
 class PipelineOutput(BaseModel):
     # ---- IDs ----
     id: UUID
-    doc_id: str
     chunk_id: UUID
 
     # ---- Core Retrieval ----
@@ -56,7 +55,6 @@ class PipelineOutput(BaseModel):
 
     # ---- Semantic Labels ----
     chunk_title: str
-    section: str
 
     # ---- Document Context ----
     doc_title: str
@@ -65,12 +63,6 @@ class PipelineOutput(BaseModel):
     # ---- Position ----
     page: int | None = None
     total_pages: int | None = None
-
-    # ---- Optional ----
-    tags: list[str] | None = None
-
-    # ---- Metadata ----
-    metadata: ChunkMetadata
 
     # ---- System ----
     created_at: datetime

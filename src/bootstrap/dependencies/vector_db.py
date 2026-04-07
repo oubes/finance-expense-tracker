@@ -13,7 +13,7 @@ from src.infrastructure.vector_db.extensions.db_vector_ext import VectorExtensio
 from src.infrastructure.vector_db.core.db_client import PostgresVectorClient
 
 # ---- Queries ----
-from src.infrastructure.vector_db.queries.chunk_queries import (
+from src.services.db_services.queries.chunk_queries import (
     CREATE_CHUNKS_TABLE_SQL,
     INSERT_CHUNK_SQL,
     DELETE_CHUNKS_SQL,
@@ -23,7 +23,7 @@ from src.infrastructure.vector_db.queries.chunk_queries import (
 )
 
 # ---- Ops ----
-from src.infrastructure.vector_db.operations.chunk_ops import (
+from src.services.db_services.operations.chunk_ops import (
     init_chunks_table,
     upsert_chunks,
     delete_all_chunks,

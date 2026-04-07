@@ -1,7 +1,6 @@
 # ---- Imports ----
 import logging
 from typing import Any
-from psycopg.types.json import Json
 
 logger = logging.getLogger(__name__)
 
@@ -34,19 +33,15 @@ async def upsert_chunks(client, insert_sql: str, records: list[Any]):
         for r in records:
             params = (
                 _get(r, "id"),
-                _get(r, "doc_id"),
                 _get(r, "chunk_id"),
                 _get(r, "content"),
                 _get(r, "summary"),
                 _get(r, "embedding"),
                 _get(r, "chunk_title"),
-                _get(r, "section"),
                 _get(r, "doc_title"),
                 _get(r, "source"),
                 _get(r, "page"),
                 _get(r, "total_pages"),
-                _get(r, "tags"),
-                Json(_get(r, "metadata") or {}),
                 _get(r, "created_at"),
                 _get(r, "pipeline_version"),
             )
@@ -95,7 +90,7 @@ async def search_chunks(client, search_sql: str, query_embedding, doc_name, limi
     try:
         return await client.execute(
             search_sql,
-            (doc_name, doc_name, query_embedding, limit),
+            (query_embedding, doc_name, doc_name, query_embedding, limit),
             fetch=True,
         )
     except Exception:

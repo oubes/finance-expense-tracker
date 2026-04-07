@@ -9,8 +9,6 @@ from langgraph.graph import StateGraph, START, END
 
 from src.core.schemas.pipeline.ingestion_schema import (
     PipelineOutput,
-    PipelineMeta,
-    ChunkMetadata
 )
 
 from src.shared.graph_builder import GraphSaver
@@ -64,7 +62,6 @@ class IngestionPipeline:
 
         self.config = config
 
-        # ---- Dependencies ----
         self.pdf_loader = pdf_loader
         self.chunker = chunker
         self.embedding = embedding
@@ -73,11 +70,9 @@ class IngestionPipeline:
         self.json_extractor = json_extractor
         self.json_validator = json_validator
 
-        # ---- Config ----
         self.doc_name = config.ingestion.doc_name
         self.score_threshold = config.ingestion.score_filter_threshold
 
-        # ---- Validation ----
         self.required_keys = {"title", "summary", "flag"}
         self.allowed_flags = {"SUCCESS_FLAG"}
 
@@ -132,14 +127,7 @@ class IngestionPipeline:
         chunks = attach_chunk_ids(chunks)
 
         for c in chunks:
-            doc_title = self.doc_name
-            chunk_title = c.get("metadata", {}).get("title") or f"chunk_{c['chunk_id']}"
-
-            c["document"] = {"title": doc_title}
-            c["content"] = {
-                "title": chunk_title,
-                "text": c["content"]
-            }
+            c["chunk_title"] = c.get("metadata", {}).get("title") or f"chunk_{c['chunk_id']}"
 
         state["chunked_documents"] = chunks
         state["filtered_chunks"] = chunks.copy()
@@ -184,8 +172,8 @@ class IngestionPipeline:
         inputs = [
             {
                 "chunk_id": c["chunk_id"],
-                "title": c["content"]["title"],
-                "content": c["content"]["text"]
+                "title": c["chunk_title"],
+                "content": c["content"]
             }
             for c in state["filtered_chunks"]
         ]
@@ -271,7 +259,7 @@ class IngestionPipeline:
         ]
         return state
 
-    # ---- Final Aggregation (DB READY) ----
+    # ---- Final Aggregation ----
     def final_aggregation_node(self, state: IngestionState) -> IngestionState:
         if not state["collected_summaries"]:
             return state
@@ -289,33 +277,23 @@ class IngestionPipeline:
         for cid, summary in summary_map.items():
             chunk = chunk_map.get(cid, {})
             metadata = chunk.get("metadata", {})
-            content = chunk.get("content", {})
-            document = chunk.get("document", {})
 
             record = PipelineOutput(
                 id=uuid.uuid4(),
-                doc_id=document.get("title", ""),
                 chunk_id=uuid.UUID(cid),
 
-                content=content.get("text", ""),
+                content=chunk.get("content", ""),
                 summary=summary.get("summary", ""),
 
                 chunk_title=summary.get("title", ""),
-                section=summary.get("title", ""),
 
-                doc_title=document.get("title", ""),
+                doc_title=self.doc_name,
                 source=metadata.get("source", ""),
 
                 page=metadata.get("page"),
                 total_pages=metadata.get("total_pages"),
 
-                tags=None,
-
                 embedding=embedding_map.get(cid, []),
-                
-                metadata=ChunkMetadata(
-                    page_label=metadata.get("page_label")
-                ),
 
                 created_at=datetime.now(timezone.utc),
                 pipeline_version=PIPELINE_VERSION
