@@ -19,17 +19,17 @@ PIPELINE_VERSION = "1.0"
 
 # ---- State Definition ----
 class IngestionState(TypedDict):
-    document: list[Document] | None
-    chunks: list[dict] | None
+    source_documents: list[Document] | None
+    chunked_documents: list[dict] | None
     filtered_chunks: list[dict] | None
 
-    messages: list[dict] | None
-    raw_summaries: list[dict] | None
-    extracted: list[dict] | None
-    validated: list[dict] | None
+    summarization_messages: list[dict] | None
+    generated_summaries_raw: list[dict] | None
+    extracted_summaries_json: list[dict] | None
+    validated_summaries: list[dict] | None
 
     embeddings: list[dict] | None
-    summary: list[dict] | None
+    final_pipeline_output: list[dict] | None
 
 
 # ---- Utility ----
@@ -85,11 +85,11 @@ class IngestionPipeline:
         self.graph.add_node("score_filter", self.score_filter_node)
         self.graph.add_node("metadata_cleanup", self.metadata_cleanup_node)
 
-        self.graph.add_node("msg_builder", self.summarizer_msg_builder_node)
-        self.graph.add_node("generate", self.summarizer_generate_node)
-        self.graph.add_node("extract", self.summarizer_extract_node)
-        self.graph.add_node("validate", self.summarizer_validate_node)
-        self.graph.add_node("collect", self.summarizer_collect_node)
+        self.graph.add_node("msg_builder", self.summarization_msg_builder_node)
+        self.graph.add_node("generate", self.summarization_generate_node)
+        self.graph.add_node("extract", self.summarization_extract_node)
+        self.graph.add_node("validate", self.summarization_validate_node)
+        self.graph.add_node("collect", self.summarization_collect_node)
 
         self.graph.add_node("embedding", self.embedding_node)
         self.graph.add_node("final_aggregation", self.final_aggregation_node)
@@ -115,14 +115,14 @@ class IngestionPipeline:
     # ---- Nodes ----
 
     def pdf_loader_node(self, state: IngestionState) -> IngestionState:
-        state["document"] = self.pdf_loader.load(self.doc_name)
+        state["source_documents"] = self.pdf_loader.load(self.doc_name)
         return state
 
     def chunker_node(self, state: IngestionState) -> IngestionState:
-        if not state["document"]:
+        if not state["source_documents"]:
             return state
 
-        chunks = self.chunker.chunk_documents(state["document"], self.doc_name)
+        chunks = self.chunker.chunk_documents(state["source_documents"], self.doc_name)
         chunks = attach_chunk_ids(chunks)
 
         for c in chunks:
@@ -135,7 +135,7 @@ class IngestionPipeline:
                 "text": c["content"]
             }
 
-        state["chunks"] = chunks
+        state["chunked_documents"] = chunks
         state["filtered_chunks"] = chunks.copy()
         return state
 
@@ -169,7 +169,7 @@ class IngestionPipeline:
         ]
         return state
 
-    def summarizer_msg_builder_node(self, state: IngestionState) -> IngestionState:
+    def summarization_msg_builder_node(self, state: IngestionState) -> IngestionState:
         if not state["filtered_chunks"]:
             return state
 
@@ -190,43 +190,43 @@ class IngestionPipeline:
         for i, msg in enumerate(messages):
             msg["chunk_id"] = inputs[i]["chunk_id"]
 
-        state["messages"] = messages
+        state["summarization_messages"] = messages
         return state
 
-    def summarizer_generate_node(self, state: IngestionState) -> IngestionState:
-        if not state["messages"]:
+    def summarization_generate_node(self, state: IngestionState) -> IngestionState:
+        if not state["summarization_messages"]:
             return state
 
         outputs = []
-        for msg in state["messages"]:
+        for msg in state["summarization_messages"]:
             outputs.append({
                 "chunk_id": msg["chunk_id"],
                 "data": self.llm_generator.generate(msg["data"])
             })
 
-        state["raw_summaries"] = outputs
+        state["generated_summaries_raw"] = outputs
         return state
 
-    def summarizer_extract_node(self, state: IngestionState) -> IngestionState:
-        if not state["raw_summaries"]:
+    def summarization_extract_node(self, state: IngestionState) -> IngestionState:
+        if not state["generated_summaries_raw"]:
             return state
 
         extracted_raw = self.json_extractor.extract_batch(
-            [r["data"] for r in state["raw_summaries"]]
+            [r["data"] for r in state["generated_summaries_raw"]]
         )
 
-        state["extracted"] = [
-            {"chunk_id": state["raw_summaries"][i]["chunk_id"], "data": extracted_raw[i]}
+        state["extracted_summaries_json"] = [
+            {"chunk_id": state["generated_summaries_raw"][i]["chunk_id"], "data": extracted_raw[i]}
             for i in range(len(extracted_raw))
         ]
 
         return state
 
-    def summarizer_validate_node(self, state: IngestionState) -> IngestionState:
-        if not state["extracted"]:
+    def summarization_validate_node(self, state: IngestionState) -> IngestionState:
+        if not state["extracted_summaries_json"]:
             return state
 
-        extracted_data = [e["data"] for e in state["extracted"]]
+        extracted_data = [e["data"] for e in state["extracted_summaries_json"]]
 
         validated_raw = self.json_validator.validate_batch(
             extracted_data,
@@ -234,9 +234,9 @@ class IngestionPipeline:
             allowed_flags=self.allowed_flags
         )
 
-        state["validated"] = [
+        state["validated_summaries"] = [
             {
-                "chunk_id": state["extracted"][i]["chunk_id"],
+                "chunk_id": state["extracted_summaries_json"][i]["chunk_id"],
                 "data": validated_raw[i]["data"],
                 "state": validated_raw[i]["state"]
             }
@@ -245,12 +245,12 @@ class IngestionPipeline:
 
         return state
 
-    def summarizer_collect_node(self, state: IngestionState) -> IngestionState:
-        if not state["validated"]:
+    def summarization_collect_node(self, state: IngestionState) -> IngestionState:
+        if not state["validated_summaries"]:
             return state
 
-        state["summary"] = [
-            v for v in state["validated"] if v["state"]
+        state["final_pipeline_output"] = [
+            v for v in state["validated_summaries"] if v["state"]
         ]
 
         return state
@@ -270,10 +270,10 @@ class IngestionPipeline:
         return state
 
     def final_aggregation_node(self, state: IngestionState) -> IngestionState:
-        if not state["summary"]:
+        if not state["final_pipeline_output"]:
             return state
 
-        summaries = state["summary"] or []
+        summaries = state["final_pipeline_output"] or []
         embeddings = state.get("embeddings") or []
         filtered_chunks = state.get("filtered_chunks") or []
 
@@ -286,14 +286,23 @@ class IngestionPipeline:
         documents = []
 
         for cid in summary_map:
+            summary = summary_map[cid]
+
+            # ---- CRITICAL FIX: use LLM title ----
+            title = summary.get("title", "")
+
             documents.append({
                 "document": document_map.get(cid),
                 "content": {
                     **content_map.get(cid, {}),
-                    "summary": summary_map[cid]
+                    "title": title,
+                    "summary": summary
                 },
                 "vector": embedding_map.get(cid),
-                "metadata": metadata_map.get(cid)
+                "metadata": {
+                    **metadata_map.get(cid, {}),
+                    "title": title
+                }
             })
 
         pipeline_output = PipelineOutput(
@@ -304,22 +313,21 @@ class IngestionPipeline:
             )
         )
 
-        state["summary"] = [pipeline_output.model_dump()]
+        state["final_pipeline_output"] = [pipeline_output.model_dump()]
         return state
 
     # ---- Runner ----
     def run(self) -> IngestionState:
         initial_state: IngestionState = {
-            "document": None,
-            "chunks": None,
+            "source_documents": None,
+            "chunked_documents": None,
             "filtered_chunks": None,
-            "messages": None,
-            "raw_summaries": None,
-            "extracted": None,
-            "validated": None,
-            "summary": None,
+            "summarization_messages": None,
+            "generated_summaries_raw": None,
+            "extracted_summaries_json": None,
+            "validated_summaries": None,
+            "final_pipeline_output": None,
             "embeddings": None,
         }
         self.graph_saver.save(self.compiled)
-        logging.info("=========> Starting pipeline execution pla pla <=========")
         return self.compiled.invoke(initial_state)  # type: ignore

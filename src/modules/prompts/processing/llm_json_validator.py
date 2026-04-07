@@ -1,23 +1,20 @@
+# ---- Imports ----
 import json
 import re
 from typing import Any
 
 
 class LLMJsonValidator:
+
     # ---- Repair Truncated JSON ----
     def _repair_json_string(self, raw_str: str) -> str:
-        """Attempt to close unbalanced braces in truncated JSON strings."""
         raw_str = raw_str.strip()
 
-        # Count unmatched opening braces
         opened_braces = raw_str.count('{') - raw_str.count('}')
-
         if opened_braces > 0:
             raw_str += '}' * opened_braces
 
-        # Remove trailing commas before closing brackets/braces
         raw_str = re.sub(r',\s*([\]}])', r'\1', raw_str)
-
         return raw_str
 
     # ---- Convert Values to Strings Safely ----
@@ -29,7 +26,6 @@ class LLMJsonValidator:
             return value
 
         try:
-            # Convert dict/list to compact JSON string
             return json.dumps(value, ensure_ascii=False)
         except Exception:
             return str(value)
@@ -44,7 +40,7 @@ class LLMJsonValidator:
         parsed: dict[str, Any],
         required_keys: set[str] | None = None,
         allowed_flags: set[str] | None = None,
-        lenient_mode: bool = True  # Allow partially valid / truncated data
+        lenient_mode: bool = True
     ) -> dict[str, Any]:
 
         # ---- Unwrap Extractor Output ----
@@ -53,15 +49,13 @@ class LLMJsonValidator:
                 return {"state": False, "data": None}
             parsed = parsed["data"]
 
-        # ---- Ensure Input is Dict ----
         if not isinstance(parsed, dict):
             return {"state": False, "data": None}
 
-        # ---- Required Keys Check ----
+        # ---- Required Keys ----
         if required_keys:
             missing_keys = required_keys - set(parsed.keys())
 
-            # In lenient mode, accept if summary exists
             if missing_keys:
                 if not ("summary" in parsed and lenient_mode):
                     return {"state": False, "data": None}
@@ -73,7 +67,11 @@ class LLMJsonValidator:
         elif allowed_flags and "flag" not in parsed and not lenient_mode:
             return {"state": False, "data": None}
 
-        # ---- Normalize All Values to Strings ----
+        # ---- Ensure title exists explicitly ----
+        # (critical for downstream pipeline usage)
+        if "title" not in parsed:
+            parsed["title"] = ""
+
         normalized_data = self._normalize_dict(parsed)
 
         return {"state": True, "data": normalized_data}
