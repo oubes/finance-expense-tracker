@@ -7,7 +7,6 @@ from src.shared.graph_builder import GraphSaver
 from src.core.schemas.pipeline.ingestion_schema import PipelineOutput
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 
 # ---- State ----
