@@ -1,7 +1,7 @@
 # ---- Imports ----
 import time
 import logging
-from src.core.health.schemas.health_schemas import DependencyResult, AppHealthData
+from src.core.schemas.health.health_schemas import DependencyResult, AppHealthData
 
 # ---- Logger Initialization ----
 logger = logging.getLogger(__name__)

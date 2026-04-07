@@ -3,8 +3,8 @@ import time
 import asyncio
 import redis.asyncio as redis
 import logging
-from src.bootstrap.dependencies import get_settings
-from src.core.health.schemas.health_schemas import DependencyResult, RedisHealthData
+from src.bootstrap.dependencies.settings import get_settings
+from src.core.schemas.health.health_schemas import DependencyResult, RedisHealthData
 
 # ---- Logger Initialization ----
 logger = logging.getLogger(__name__)

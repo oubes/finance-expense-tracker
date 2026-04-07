@@ -1,9 +1,9 @@
 # ---- Imports ----
 import time
 import logging
-from src.bootstrap.dependencies import get_embedding_model, get_settings
+from src.bootstrap.dependencies.embeddings import get_embedding_model, get_settings
 from src.infrastructure.embeddings.embedder import Embedder
-from src.core.health.schemas.health_schemas import DependencyResult, EmbedderHealthData
+from src.core.schemas.health.health_schemas import DependencyResult, EmbedderHealthData
 
 # ---- Logger Initialization ----
 logger = logging.getLogger(__name__)

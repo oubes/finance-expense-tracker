@@ -2,12 +2,7 @@
 import logging
 from fastapi import Response, status
 
-from src.bootstrap.dependencies import (
-    get_settings,
-    get_db_client,
-)
-
-from src.core.health.schemas.health_schemas import DependencyResult
+from src.core.schemas.health.health_schemas import DependencyResult
 
 from src.core.health.app_health import get_app_health
 from src.core.health.db_health import check_db
@@ -24,12 +19,6 @@ logger = logging.getLogger(__name__)
 async def get_readiness(response: Response) -> dict:
     # ---- Aggregation Start ----
     logger.info("Aggregating system readiness results")
-
-    # ---- Settings Initialization ----
-    settings = get_settings()
-
-    # ---- DB Client Resolution ----
-    db_client = await get_db_client()
 
     # ---- Health Check Components ----
     llm_health = LLMHealth()
