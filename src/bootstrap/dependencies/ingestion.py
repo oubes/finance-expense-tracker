@@ -27,6 +27,9 @@ from src.modules.ingestion.chunker.chunker import Chunker
 from src.pipelines.v1.ingestion_pipeline import IngestionPipeline
 from src.services.v1.chunk_ingestion_service import ChunkIngestionService
 
+# ---- Workflow ----
+from src.workflow.ingestion_workflow import IngestionWorkflow
+
 # ---- Prompting ----
 from src.bootstrap.dependencies.prompting import (
     get_msg_builder,
@@ -128,3 +131,13 @@ async def get_db_ingestion_service(
         client=db_client,
         collection="chunk_embeddings",
     )
+
+
+# ---- Workflow Entrypoint ----
+async def get_ingestion_workflow_entrypoint(
+    pipeline: IngestionPipeline = Depends(get_ingestion_pipeline),
+) -> IngestionWorkflow:
+    logger.info("Starting Ingestion Workflow")
+
+    workflow = IngestionWorkflow(pipeline=pipeline)
+    return workflow
