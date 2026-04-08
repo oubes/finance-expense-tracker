@@ -11,17 +11,19 @@ class LLMConfig(BaseModel):
     temperature: float = Field(0.1, ge=0.0, le=1.0)  # Ensure it's between 0 and 1
     max_tokens: int = Field(256, gt=0)
 
+class DataConfig(BaseModel):
+    raw_data_dir: str
+    
+class EmbeddingsConfig(BaseModel):
+    model: str
+    dimension: int = Field(1024, gt=0)
+
 class ingestionConfig(BaseModel):
     chunk_size: int = Field(500, gt=0)
     chunk_overlap: int = Field(50, ge=0)
     prompt_templates_dir: str
     doc_name: str
     score_filter_threshold: float = Field(0.5, ge=0.0, le=1.0)  # Ensure it's between 0 and 1
-
-class EmbeddingsConfig(BaseModel):
-    model: str
-    dimension: int = Field(1024, gt=0)
-
 
 class RAGConfig(BaseModel):
     top_k_retrieval: int = Field(5, gt=0)
@@ -126,8 +128,9 @@ class AppSettings(BaseSettings):
 
     # ---- Structured configs (from YAML) ----
     llm: LLMConfig
-    ingestion: ingestionConfig
+    data: DataConfig
     embeddings: EmbeddingsConfig
+    ingestion: ingestionConfig
     rag: RAGConfig
     vector_db: VectorDBConfig
     rate_limit: RateLimitConfig

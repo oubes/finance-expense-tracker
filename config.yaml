@@ -6,6 +6,10 @@ llm:
   temperature: 0.2
   max_tokens: 256
 
+# Data Configuration
+data:
+  raw_data_dir: "data/raw"
+
 # Embeddings
 embeddings:
   model: "text-embedding-v3"

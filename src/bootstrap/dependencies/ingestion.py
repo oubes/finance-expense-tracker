@@ -21,7 +21,7 @@ from src.bootstrap.dependencies.vector_db import (
 )
 
 # ---- Modules ----
-from src.modules.ingestion.loader.pdf_loader import PDFDocumentLoader
+from src.modules.ingestion.loader.pdf_loader import PyPDFDocumentLoader, PyMuPDFDocumentLoader
 from src.modules.ingestion.chunker.cleaner_pre import PreTextCleaner
 from src.modules.ingestion.chunker.cleaner_post import PostTextCleaner
 from src.modules.ingestion.chunker.spiltter import Splitter
@@ -46,8 +46,11 @@ logger = logging.getLogger(__name__)
 
 
 # ---- PDF Loader ----
-def get_pdf_loader() -> PDFDocumentLoader:
-    return PDFDocumentLoader()
+def get_pdf_loader(settings: AppSettings = Depends(get_settings)) -> PyPDFDocumentLoader:
+    return PyPDFDocumentLoader(settings)
+
+def get_pymupdf_loader(settings: AppSettings = Depends(get_settings)) -> PyMuPDFDocumentLoader:
+    return PyMuPDFDocumentLoader(settings)
 
 
 # ---- Chunking Components ----
@@ -98,7 +101,7 @@ def get_chunker(
 # ---- Ingestion Pipeline ----
 def get_ingestion_pipeline(
     settings: AppSettings = Depends(get_settings),
-    pdf_loader: PDFDocumentLoader = Depends(get_pdf_loader),
+    pdf_loader: PyMuPDFDocumentLoader = Depends(get_pymupdf_loader),
     chunker: Chunker = Depends(get_chunker),
     embedding=Depends(get_embedding),
     msg_builder=Depends(get_msg_builder),
