@@ -1,5 +1,5 @@
 # ---- Imports ----
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from uuid import UUID
 from datetime import datetime
 
@@ -18,6 +18,7 @@ class WorkflowOutput(BaseModel):
     # ---- Document Context ----
     doc_title: str
     source: str
+    score: float = Field(ge=0, le=1)
 
     # ---- Position ----
     page: int | None = None

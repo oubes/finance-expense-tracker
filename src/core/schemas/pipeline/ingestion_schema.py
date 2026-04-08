@@ -59,6 +59,7 @@ class PipelineOutput(BaseModel):
     # ---- Document Context ----
     doc_title: str
     source: str
+    score: float = Field(ge=0.0, le=1.0)
 
     # ---- Position ----
     page: int | None = None

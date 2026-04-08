@@ -128,6 +128,7 @@ class IngestionPipeline:
 
         state["chunked_documents"] = chunks
         state["filtered_chunks"] = chunks
+        
         return state
 
     def toc_filter_node(self, state: IngestionState) -> IngestionState:
@@ -280,9 +281,7 @@ class IngestionPipeline:
         summary_map = {s["chunk_id"]: s["data"] for s in summaries}
         embedding_map = {e["chunk_id"]: e["vector"] for e in embeddings}
 
-        chunk_map = {}
-        for c in chunks:
-            chunk_map[c["chunk_id"]] = c
+        chunk_map = {c["chunk_id"]: c for c in chunks}
 
         records: list[PipelineOutput] = []
         doc_name = self.doc_name
@@ -290,6 +289,19 @@ class IngestionPipeline:
         for cid, summary in summary_map.items():
             chunk = chunk_map.get(cid)
             metadata = chunk.get("metadata") if chunk else {}
+            metadata = metadata or {}
+
+            # ---- Extract REAL score ----
+            raw_score = (
+                chunk.get("score")
+                if chunk and "score" in chunk
+                else (metadata.get("score", 0.0) if metadata else 0.0)
+            )
+
+            try:
+                score_value = float(raw_score or 0.0)
+            except (TypeError, ValueError):
+                score_value = 0.0
 
             records.append(
                 PipelineOutput(
@@ -297,6 +309,7 @@ class IngestionPipeline:
                     chunk_id=uuid.UUID(cid),
                     content=chunk.get("content", "") if chunk else "",
                     summary=summary.get("summary", ""),
+                    score=score_value,
                     chunk_title=summary.get("title", ""),
                     doc_title=doc_name,
                     source=metadata.get("source", ""),

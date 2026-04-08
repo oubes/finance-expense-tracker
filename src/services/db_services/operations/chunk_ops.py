@@ -1,21 +1,15 @@
-# ---- Imports ----
 import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-
-# ---- Helpers ----
 def _get(obj: Any, key: str) -> Any:
-    """Safely extract a value from dict or object"""
     if isinstance(obj, dict):
         return obj.get(key)
     if hasattr(obj, key):
         return getattr(obj, key)
     raise KeyError(f"Missing key/attribute: {key}")
 
-
-# ---- Init Table ----
 async def init_chunks_table(client, create_sql: str, config):
     try:
         sql = create_sql.format(dim=config.embeddings.dimension)
@@ -26,8 +20,6 @@ async def init_chunks_table(client, create_sql: str, config):
         logger.exception("init_chunks_table failed")
         raise
 
-
-# ---- Generic Upsert ----
 async def upsert_chunks(client, insert_sql: str, records: list[Any]):
     try:
         for r in records:
@@ -44,8 +36,8 @@ async def upsert_chunks(client, insert_sql: str, records: list[Any]):
                 _get(r, "total_pages"),
                 _get(r, "created_at"),
                 _get(r, "pipeline_version"),
+                _get(r, "score"),
             )
-
             await client.execute(insert_sql, params)
 
         await client.commit()
@@ -55,8 +47,6 @@ async def upsert_chunks(client, insert_sql: str, records: list[Any]):
         logger.exception("upsert_chunks failed")
         raise
 
-
-# ---- Delete ----
 async def delete_all_chunks(client, delete_sql: str):
     try:
         await client.execute(delete_sql)
@@ -65,8 +55,6 @@ async def delete_all_chunks(client, delete_sql: str):
         logger.exception("delete_all_chunks failed")
         raise
 
-
-# ---- Count ----
 async def count_chunks(client, count_sql: str):
     try:
         result = await client.execute_one(count_sql)
@@ -75,8 +63,6 @@ async def count_chunks(client, count_sql: str):
         logger.exception("count_chunks failed")
         return 0
 
-
-# ---- Preview ----
 async def preview_chunks(client, preview_sql: str, limit: int = 10):
     try:
         return await client.execute(preview_sql, (limit,), fetch=True)
@@ -84,8 +70,6 @@ async def preview_chunks(client, preview_sql: str, limit: int = 10):
         logger.exception("preview_chunks failed")
         return []
 
-
-# ---- Search ----
 async def search_chunks(client, search_sql: str, query_embedding, doc_name, limit):
     try:
         return await client.execute(

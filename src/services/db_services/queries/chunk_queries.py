@@ -20,7 +20,9 @@ CREATE TABLE IF NOT EXISTS chunk_embeddings (
     total_pages INT,
 
     created_at TIMESTAMP WITH TIME ZONE,
-    pipeline_version TEXT
+    pipeline_version TEXT,
+
+    score FLOAT
 );
 
 CREATE INDEX IF NOT EXISTS idx_chunk_embeddings_vector_hnsw
@@ -38,13 +40,15 @@ INSERT INTO chunk_embeddings (
     doc_title, source,
     page, total_pages,
     created_at,
-    pipeline_version
+    pipeline_version,
+    score
 )
 VALUES (
     %s, %s, %s,
     %s, %s, %s,
     %s, %s, %s,
-    %s, %s, %s
+    %s, %s, %s,
+    %s
 )
 ON CONFLICT (id)
 DO UPDATE SET
@@ -57,7 +61,8 @@ DO UPDATE SET
     page = EXCLUDED.page,
     total_pages = EXCLUDED.total_pages,
     created_at = EXCLUDED.created_at,
-    pipeline_version = EXCLUDED.pipeline_version;
+    pipeline_version = EXCLUDED.pipeline_version,
+    score = EXCLUDED.score;
 """
 
 
