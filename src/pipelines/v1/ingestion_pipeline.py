@@ -2,15 +2,13 @@
 from typing import TypedDict, Any
 import logging
 import uuid
+import asyncio
 from datetime import datetime, timezone
 
 from langchain_core.documents import Document
 from langgraph.graph import StateGraph, START, END
 
-from src.core.schemas.pipeline.ingestion_schema import (
-    PipelineOutput,
-)
-
+from src.core.schemas.pipeline.ingestion_schema import PipelineOutput
 from src.shared.graph_builder import GraphSaver
 
 
@@ -18,7 +16,6 @@ from src.shared.graph_builder import GraphSaver
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# ---- Pipeline Version ----
 PIPELINE_VERSION = "1.0"
 
 
@@ -61,7 +58,6 @@ class IngestionPipeline:
     ) -> None:
 
         self.config = config
-
         self.pdf_loader = pdf_loader
         self.chunker = chunker
         self.embedding = embedding
@@ -127,10 +123,11 @@ class IngestionPipeline:
         chunks = attach_chunk_ids(chunks)
 
         for c in chunks:
-            c["chunk_title"] = c.get("metadata", {}).get("title") or f"chunk_{c['chunk_id']}"
+            metadata = c.get("metadata") or {}
+            c["chunk_title"] = metadata.get("title") or f"chunk_{c['chunk_id']}"
 
         state["chunked_documents"] = chunks
-        state["filtered_chunks"] = chunks.copy()
+        state["filtered_chunks"] = chunks
         return state
 
     def toc_filter_node(self, state: IngestionState) -> IngestionState:
@@ -164,49 +161,60 @@ class IngestionPipeline:
         return state
 
     # ---- Summarization ----
+    async def summarization_msg_builder_node(self, state: IngestionState) -> IngestionState:
 
-    def summarization_msg_builder_node(self, state: IngestionState) -> IngestionState:
         if not state["filtered_chunks"]:
             return state
 
-        inputs = [
-            {
+        inputs: list[dict[str, Any]] = []
+
+        for c in state["filtered_chunks"]:
+            inputs.append({
                 "chunk_id": c["chunk_id"],
                 "title": c["chunk_title"],
-                "content": c["content"]
-            }
-            for c in state["filtered_chunks"]
-        ]
+                "content": c["content"],
+            })
 
-        messages = self.msg_builder.build_batch(
+        results = await self.msg_builder.build_batch_async(
             prompt_file_name="summarizer",
             inputs=inputs
         )
 
-        for i, msg in enumerate(messages):
-            msg["chunk_id"] = inputs[i]["chunk_id"]
+        messages: list[dict[str, Any]] = []
+
+        for res, c in zip(results, state["filtered_chunks"]):
+            res["chunk_id"] = c["chunk_id"]
+            messages.append(res)
 
         state["summarization_messages"] = messages
+
         return state
 
-    def summarization_generate_node(self, state: IngestionState) -> IngestionState:
+    async def summarization_generate_node(self, state: IngestionState) -> IngestionState:
         if not state["summarization_messages"]:
             return state
 
-        state["generated_summaries_raw"] = [
-            {
-                "chunk_id": msg["chunk_id"],
-                "data": self.llm_generator.generate(msg["data"])
-            }
+        loop = asyncio.get_running_loop()
+
+        tasks = [
+            loop.run_in_executor(None, self.llm_generator.generate, msg["data"])
             for msg in state["summarization_messages"]
         ]
+
+        results = await asyncio.gather(*tasks)
+
+        state["generated_summaries_raw"] = [
+            {"chunk_id": state["summarization_messages"][i]["chunk_id"], "data": results[i]}
+            for i in range(len(results))
+        ]
+
         return state
 
-    def summarization_extract_node(self, state: IngestionState) -> IngestionState:
+    async def summarization_extract_node(self, state: IngestionState) -> IngestionState:
         if not state["generated_summaries_raw"]:
             return state
 
-        extracted = self.json_extractor.extract_batch(
+        extracted = await self.json_extractor.extract_batch(
             [r["data"] for r in state["generated_summaries_raw"]]
         )
 
@@ -246,12 +254,13 @@ class IngestionPipeline:
         return state
 
     # ---- Embedding ----
-    def embedding_node(self, state: IngestionState) -> IngestionState:
+    async def embedding_node(self, state: IngestionState) -> IngestionState:
         if not state["collected_summaries"]:
             return state
 
         texts = [s["data"]["summary"] for s in state["collected_summaries"]]
-        vectors = self.embedding.embed_batch(texts)
+
+        vectors = await self.embedding.embed_batch(texts)
 
         state["embeddings"] = [
             {"chunk_id": state["collected_summaries"][i]["chunk_id"], "vector": vectors[i]}
@@ -261,45 +270,43 @@ class IngestionPipeline:
 
     # ---- Final Aggregation ----
     def final_aggregation_node(self, state: IngestionState) -> IngestionState:
-        if not state["collected_summaries"]:
+        summaries = state.get("collected_summaries")
+        if not summaries:
             return state
 
-        summaries = state["collected_summaries"]
         embeddings = state.get("embeddings") or []
         chunks = state.get("filtered_chunks") or []
 
         summary_map = {s["chunk_id"]: s["data"] for s in summaries}
         embedding_map = {e["chunk_id"]: e["vector"] for e in embeddings}
-        chunk_map = {c["chunk_id"]: c for c in chunks}
+
+        chunk_map = {}
+        for c in chunks:
+            chunk_map[c["chunk_id"]] = c
 
         records: list[PipelineOutput] = []
+        doc_name = self.doc_name
 
         for cid, summary in summary_map.items():
-            chunk = chunk_map.get(cid, {})
-            metadata = chunk.get("metadata", {})
+            chunk = chunk_map.get(cid)
+            metadata = chunk.get("metadata") if chunk else {}
 
-            record = PipelineOutput(
-                id=uuid.uuid4(),
-                chunk_id=uuid.UUID(cid),
-
-                content=chunk.get("content", ""),
-                summary=summary.get("summary", ""),
-
-                chunk_title=summary.get("title", ""),
-
-                doc_title=self.doc_name,
-                source=metadata.get("source", ""),
-
-                page=metadata.get("page"),
-                total_pages=metadata.get("total_pages"),
-
-                embedding=embedding_map.get(cid, []),
-
-                created_at=datetime.now(timezone.utc),
-                pipeline_version=PIPELINE_VERSION
+            records.append(
+                PipelineOutput(
+                    id=uuid.uuid4(),
+                    chunk_id=uuid.UUID(cid),
+                    content=chunk.get("content", "") if chunk else "",
+                    summary=summary.get("summary", ""),
+                    chunk_title=summary.get("title", ""),
+                    doc_title=doc_name,
+                    source=metadata.get("source", ""),
+                    page=metadata.get("page"),
+                    total_pages=metadata.get("total_pages"),
+                    embedding=embedding_map.get(cid, []),
+                    created_at=datetime.now(timezone.utc),
+                    pipeline_version=PIPELINE_VERSION
+                )
             )
-
-            records.append(record)
 
         state["final_pipeline_output"] = records
         return state
@@ -320,4 +327,4 @@ class IngestionPipeline:
         }
 
         self.graph_saver.save(self.compiled)
-        return await self.compiled.ainvoke(initial_state)  # type: ignore
+        return await self.compiled.ainvoke(initial_state) # type: ignore

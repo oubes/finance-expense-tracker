@@ -1,23 +1,25 @@
 # ---- Imports ----
-import json
 import re
+import orjson
 from typing import Any
 
 
 class LLMJsonValidator:
 
-    # ---- Repair Truncated JSON ----
+    # ---- Precompiled Patterns ----
+    _trailing_comma_pattern = re.compile(r',\s*([\]}])')
+
+    # ---- Repair JSON ----
     def _repair_json_string(self, raw_str: str) -> str:
         raw_str = raw_str.strip()
 
-        opened_braces = raw_str.count('{') - raw_str.count('}')
-        if opened_braces > 0:
-            raw_str += '}' * opened_braces
+        diff = raw_str.count('{') - raw_str.count('}')
+        if diff > 0:
+            raw_str += '}' * diff
 
-        raw_str = re.sub(r',\s*([\]}])', r'\1', raw_str)
-        return raw_str
+        return self._trailing_comma_pattern.sub(r'\1', raw_str)
 
-    # ---- Convert Values to Strings Safely ----
+    # ---- Convert Value to String ----
     def _to_str(self, value: Any) -> str:
         if value is None:
             return ""
@@ -26,55 +28,53 @@ class LLMJsonValidator:
             return value
 
         try:
-            return json.dumps(value, ensure_ascii=False)
+            return orjson.dumps(value).decode()
         except Exception:
             return str(value)
 
-    # ---- Normalize Dictionary Structure ----
+    # ---- Normalize Dictionary ----
     def _normalize_dict(self, data: dict[str, Any]) -> dict[str, str]:
-        return {str(k): self._to_str(v) for k, v in data.items()}
+        return {
+            k if isinstance(k, str) else str(k): self._to_str(v)
+            for k, v in data.items()
+        }
 
-    # ---- Validate Single Item ----
+    # ---- Validate One ----
     def validate_one(
         self,
         parsed: dict[str, Any],
         required_keys: set[str] | None = None,
         allowed_flags: set[str] | None = None,
-        lenient_mode: bool = True
+        lenient_mode: bool = True,
     ) -> dict[str, Any]:
 
-        # ---- Unwrap Extractor Output ----
-        if isinstance(parsed, dict) and "state" in parsed and "data" in parsed:
-            if not parsed["state"] or parsed["data"] is None:
+        if isinstance(parsed, dict) and "state" in parsed:
+            if not parsed.get("state") or parsed.get("data") is None:
                 return {"state": False, "data": None}
             parsed = parsed["data"]
 
         if not isinstance(parsed, dict):
             return {"state": False, "data": None}
 
-        # ---- Required Keys ----
         if required_keys:
-            missing_keys = required_keys - set(parsed.keys())
-
-            if missing_keys:
-                if not ("summary" in parsed and lenient_mode):
-                    return {"state": False, "data": None}
-
-        # ---- Flag Validation ----
-        if allowed_flags and "flag" in parsed:
-            if parsed["flag"] not in allowed_flags:
+            missing = [k for k in required_keys if k not in parsed]
+            if missing and not (lenient_mode and "summary" in parsed):
                 return {"state": False, "data": None}
-        elif allowed_flags and "flag" not in parsed and not lenient_mode:
-            return {"state": False, "data": None}
 
-        # ---- Ensure title exists explicitly ----
-        # (critical for downstream pipeline usage)
-        if "title" not in parsed:
-            parsed["title"] = ""
+        if allowed_flags:
+            flag = parsed.get("flag")
+            if flag is None:
+                if not lenient_mode:
+                    return {"state": False, "data": None}
+            elif flag not in allowed_flags:
+                return {"state": False, "data": None}
 
-        normalized_data = self._normalize_dict(parsed)
+        parsed.setdefault("title", "")
 
-        return {"state": True, "data": normalized_data}
+        return {
+            "state": True,
+            "data": self._normalize_dict(parsed),
+        }
 
     # ---- Validate Batch ----
     def validate_batch(

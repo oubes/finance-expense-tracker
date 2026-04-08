@@ -1,6 +1,7 @@
 # ---- Imports ----
 from typing import Any
 import re
+import asyncio
 from src.modules.prompts.prompt_loader import PromptLoader
 from src.modules.prompts.prompt_registry import PromptRegistry
 
@@ -34,8 +35,8 @@ class MsgBuilder:
 
         return sorted(flags)
 
-    # ---- Build Messages ----
-    def build(
+    # ---- Build Async ----
+    async def build_async(
         self,
         prompt_file_name: str,
         **kwargs: Any,
@@ -44,7 +45,13 @@ class MsgBuilder:
         # ---- Resolve Prompt File ----
         try:
             file_path = self.registry.get(prompt_file_name)
-            prompt_sections = self.prompt_loader.load(file_path)
+
+            # Run blocking I/O in thread
+            prompt_sections = await asyncio.to_thread(
+                self.prompt_loader.load,
+                file_path
+            )
+
         except Exception:
             return {"state": False, "data": None, "flags": []}
 
@@ -84,14 +91,16 @@ class MsgBuilder:
             "flags": flags
         }
 
-    # ---- Batch Build ----
-    def build_batch(
+    # ---- Batch Build Async ----
+    async def build_batch_async(
         self,
         prompt_file_name: str,
         inputs: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
 
-        return [
-            self.build(prompt_file_name=prompt_file_name, **kwargs)
+        tasks = [
+            self.build_async(prompt_file_name=prompt_file_name, **kwargs)
             for kwargs in inputs
         ]
+
+        return await asyncio.gather(*tasks)
