@@ -24,6 +24,8 @@ class HybridRetriever(RetrieverContract):
         logger.info("Hybrid search started")
 
         bm25_res, vec_res = await self._fetch(query, limit)
+        logger.info(f"BM25 Results: {bm25_res}")
+        logger.info(f"Vector Results: {vec_res}")
         bm25_res = self._normalize(bm25_res, "score")
         vec_res = self._normalize_and_invert(vec_res, "distance")
 

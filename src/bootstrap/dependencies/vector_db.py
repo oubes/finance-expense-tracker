@@ -5,12 +5,16 @@ from fastapi import Depends
 # ---- Core ----
 from src.core.config.settings import AppSettings
 from src.bootstrap.dependencies.settings import get_settings
+from src.bootstrap.dependencies.embeddings import get_embedding
 
 # ---- DB Core ----
 from src.infrastructure.vector_db.core.db_conn import DBConnect
 from src.infrastructure.vector_db.core.db_exec import DBExecutor
 from src.infrastructure.vector_db.extensions.db_vector_ext import VectorExtension
 from src.infrastructure.vector_db.core.db_client import PostgresVectorClient
+from src.modules.rag.retrieval.bm25_ret import BM25Retriever
+from src.modules.rag.retrieval.vector_ret import VectorRetriever
+from src.modules.rag.rerank.reranker import Reranker
 
 # ---- Queries ----
 from src.services.db_services.queries.chunk_queries import (
@@ -20,11 +24,7 @@ from src.services.db_services.queries.chunk_queries import (
     COUNT_CHUNKS_SQL,
 )
 
-from src.services.db_services.queries.rag_queries import (
-    SEARCH_CHUNKS_SQL,
-    PREVIEW_CHUNKS_SQL,
-)
-
+from src.services.db_services.queries.rag_queries import BM25_QUERY, VECTOR_QUERY
 
 # ---- Ops ----
 from src.services.db_services.operations.chunk_ops import (
@@ -32,11 +32,6 @@ from src.services.db_services.operations.chunk_ops import (
     upsert_chunks,
     delete_all_chunks,
     count_chunks,
-)
-
-from src.services.db_services.operations.rag_ops import (
-    preview_chunks,
-    search_chunks,
 )
 
 
@@ -109,21 +104,29 @@ async def get_count_chunks(client=Depends(get_db_client)):
     return _count
 
 
-# ---- Preview ----
-async def get_preview_chunks(client=Depends(get_db_client)):
-    async def _preview(limit: int = 10):
-        return await preview_chunks(client, PREVIEW_CHUNKS_SQL, limit)
-    return _preview
+# ---- BM25 Retriever ----
+async def get_bm25_retriever(
+    db_client: PostgresVectorClient = Depends(get_db_client),
+    query_sql: str = BM25_QUERY
+) -> BM25Retriever:
+    logger.info("Initializing BM25 Retriever")
+    return BM25Retriever(db_client=db_client, query_sql=query_sql)
 
 
-# ---- Search ----
-async def get_search_chunks(client=Depends(get_db_client)):
-    async def _search(query_embedding, doc_name=None, limit=5):
-        return await search_chunks(
-            client,
-            SEARCH_CHUNKS_SQL,
-            query_embedding,
-            doc_name,
-            limit,
-        )
-    return _search
+# ---- Vector Retriever ----
+async def get_vector_retriever(
+    db_client: PostgresVectorClient = Depends(get_db_client),
+    embedding_model=Depends(get_embedding),
+    query_sql: str = VECTOR_QUERY
+) -> VectorRetriever:
+    logger.info("Initializing Vector Retriever")
+    return VectorRetriever(
+        db_client=db_client,
+        embedding_fn=embedding_model,
+        query_sql=query_sql,
+    )
+    
+    
+async def get_reranker() -> Reranker:
+    logger.info("Initializing Reranker")
+    return Reranker()
