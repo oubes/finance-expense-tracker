@@ -29,6 +29,7 @@ Provide clear, actionable, and well-reasoned financial guidance based strictly o
 ## Output Template
 {
   "answer": "<plain text only; concise yet slightly more descriptive, human-friendly financial response with no code, no JSON, no formatting>"
+  "summary": "<a very brief summary of the advice provided, in 1-2 sentences>" 
   "title": "<a concise, descriptive title for the advice provided>"
 }
 
