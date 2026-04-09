@@ -18,9 +18,13 @@ from src.services.db_services.queries.chunk_queries import (
     INSERT_CHUNK_SQL,
     DELETE_CHUNKS_SQL,
     COUNT_CHUNKS_SQL,
-    PREVIEW_CHUNKS_SQL,
-    SEARCH_CHUNKS_SQL
 )
+
+from src.services.db_services.queries.rag_queries import (
+    SEARCH_CHUNKS_SQL,
+    PREVIEW_CHUNKS_SQL,
+)
+
 
 # ---- Ops ----
 from src.services.db_services.operations.chunk_ops import (
@@ -28,9 +32,13 @@ from src.services.db_services.operations.chunk_ops import (
     upsert_chunks,
     delete_all_chunks,
     count_chunks,
-    preview_chunks,
-    search_chunks
 )
+
+from src.services.db_services.operations.rag_ops import (
+    preview_chunks,
+    search_chunks,
+)
+
 
 logger = logging.getLogger(__name__)
 

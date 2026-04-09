@@ -1,3 +1,5 @@
+# ---- Chunk Queries ----
+
 # ---- Create Table ----
 CREATE_CHUNKS_TABLE_SQL = """
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -66,31 +68,9 @@ DO UPDATE SET
 """
 
 
-# ---- Vector Search ----
-SEARCH_CHUNKS_SQL = """
-SELECT 
-    id,
-    content,
-    summary,
-    1 - (embedding <=> %s::vector) AS cosine_sim
-FROM chunk_embeddings
-WHERE (%s::text IS NULL OR doc_title = %s)
-ORDER BY embedding <=> %s::vector
-LIMIT %s;
-"""
-
-
 # ---- Delete ----
 DELETE_CHUNKS_SQL = "DELETE FROM chunk_embeddings;"
 
 
 # ---- Count ----
 COUNT_CHUNKS_SQL = "SELECT COUNT(*) FROM chunk_embeddings;"
-
-
-# ---- Preview ----
-PREVIEW_CHUNKS_SQL = """
-SELECT id, content
-FROM chunk_embeddings
-LIMIT %s;
-"""
