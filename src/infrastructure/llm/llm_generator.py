@@ -1,7 +1,8 @@
 # ---- Imports ----
 from src.infrastructure.llm.model_loader import LLMClient
 from src.core.contracts.llm.llm import LLMGeneratorContract
-import time
+from src.core.config.settings import AppSettings
+import asyncio
 import logging
 
 # ---- Logger ----
@@ -14,12 +15,13 @@ class LLMGenerator(LLMGeneratorContract):
     def __init__(
         self,
         llm: LLMClient,
-        max_retries: int = 3,
-        base_delay: float = 0.5,
+        settings: AppSettings,
     ):
         self._llm = llm
-        self._max_retries = max_retries
-        self._base_delay = base_delay
+        self._config = settings
+        self._max_retries = self._config.llm.max_retries
+        self._base_delay = self._config.llm.base_delay
+        self._max_context_tokens = self._config.llm.max_context_tokens
 
     # ---- Prompt Safety / Formatting ----
     def _sanitize_messages(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -35,14 +37,14 @@ class LLMGenerator(LLMGeneratorContract):
             sanitized.append(
                 {
                     "role": role,
-                    "content": content[:4000],
+                    "content": content[:self._max_context_tokens],
                 }
             )
 
         return sanitized
 
     # ---- Text Generation ----
-    def generate(
+    async def generate(
         self,
         messages: list[dict[str, str]],
         temperature: float = 0.0,
@@ -62,7 +64,7 @@ class LLMGenerator(LLMGeneratorContract):
             try:
                 logger.debug(f"Attempt {attempt + 1} for model={model}")
 
-                response = client.chat.completions.create(
+                response = await client.chat.completions.create(
                     model=model,
                     messages=safe_messages,  # type: ignore
                     temperature=temperature,
@@ -77,20 +79,18 @@ class LLMGenerator(LLMGeneratorContract):
             except Exception as e:
                 last_error = e
 
-                # ---- Error Handling ----
                 error_msg = str(e).lower()
 
                 logger.warning(
                     f"LLM generation failed on attempt {attempt + 1}: {error_msg}"
                 )
 
-                # ---- Rate limit awareness heuristic ----
                 if "rate" in error_msg:
                     sleep_time = self._base_delay * (2 ** attempt)
                 else:
                     sleep_time = self._base_delay
 
-                time.sleep(sleep_time)
+                await asyncio.sleep(sleep_time)
 
         logger.error("LLM generation failed after all retries")
         raise last_error if last_error else RuntimeError("Unknown failure")

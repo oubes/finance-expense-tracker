@@ -22,6 +22,9 @@ def get_llm_client(settings: AppSettings = Depends(get_settings)) -> LLMClient:
 
 
 # ---- LLM Generator ----
-def get_llm_generator(llm_client: LLMClient = Depends(get_llm_client)) -> LLMGenerator:
+def get_llm_generator(
+    llm_client: LLMClient = Depends(get_llm_client),
+    settings: AppSettings = Depends(get_settings),
+)-> LLMGenerator:
     logger.info("Initializing LLM Generator")
-    return LLMGenerator(llm=llm_client)
+    return LLMGenerator(llm=llm_client, settings=settings)
