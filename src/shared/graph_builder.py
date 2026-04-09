@@ -2,6 +2,8 @@
 from pathlib import Path
 from typing import Any
 import logging
+import inspect
+import re
 
 # ---- logging ----
 logger = logging.getLogger(__name__)
@@ -11,7 +13,9 @@ logger = logging.getLogger(__name__)
 class GraphSaver:
     def __init__(self, filename: str):
         base_path = self._resolve_project_root()
-        self.output_path = base_path / "data" / "graphs" / filename
+        parent_name = self._resolve_parent_name()
+
+        self.output_path = base_path / "data" / "graphs" / parent_name / filename
 
     # ---- Resolve Project Root ----
     def _resolve_project_root(self) -> Path:
@@ -23,8 +27,28 @@ class GraphSaver:
             if (parent / "pyproject.toml").exists():
                 return parent
 
-        # fallback: assume cwd
         return current
+
+    # ---- Resolve Caller Parent Name (Skip Version-like Folders) ----
+    def _resolve_parent_name(self) -> str:
+        try:
+            caller_frame = inspect.stack()[2]
+            caller_file = Path(caller_frame.filename).resolve()
+
+            for parent in caller_file.parents:
+                name = parent.name
+
+                # skip version-like dirs: v1, v2, 1, 2, etc.
+                if re.fullmatch(r"v?\d+", name, re.IGNORECASE):
+                    continue
+
+                if name:
+                    return name
+
+            return "default"
+
+        except Exception:
+            return "default"
 
     # ---- Save Graph ----
     def save(self, graph: Any) -> Path:
