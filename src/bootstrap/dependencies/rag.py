@@ -5,8 +5,8 @@ import logging
 from fastapi import Depends
 
 # ---- Infrastructure ----
-from bootstrap.dependencies.llm import get_llm_generator
-from infrastructure.llm.llm_generator import LLMGenerator
+from src.bootstrap.dependencies.llm import get_llm_generator
+from src.infrastructure.llm.llm_generator import LLMGenerator
 from src.infrastructure.vector_db.core.db_client import PostgresVectorClient
 from src.bootstrap.dependencies.vector_db import get_db_client
 from src.bootstrap.dependencies.embeddings import get_embedding_model
@@ -22,6 +22,9 @@ from src.modules.prompts.processing.llm_json_validator import LLMJsonValidator
 
 # ---- Pipeline ----
 from src.pipelines.v1.aug_gen_pipeline import AugGenPipeline
+
+# ---- Workflow ----
+from src.workflow.rag_workflow import RAGWorkflow
 
 logger = logging.getLogger(__name__)
 
@@ -68,3 +71,10 @@ def get_aug_gen_pipeline(
         extractor=extractor,
         validator=validator
     )
+
+# ---- RAG Workflow ----
+def get_rag_workflow(
+    aug_gen_pipeline: AugGenPipeline = Depends(get_aug_gen_pipeline)
+) -> RAGWorkflow:
+    logger.info("Initializing RAG Workflow")
+    return RAGWorkflow(aug_gen_pipeline=aug_gen_pipeline)
