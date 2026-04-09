@@ -64,7 +64,7 @@ class AugGenPipeline:
         inputs: list[dict[str, Any]] = state["queries"]
 
         messages = await self.msg_builder.build_batch_async(
-            prompt_file_name="augmentation",
+            prompt_file_name="aug_gen",
             inputs=inputs
         )
 
