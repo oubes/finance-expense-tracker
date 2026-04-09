@@ -3,6 +3,7 @@ from typing import TypedDict, Any
 import logging
 import asyncio
 from langgraph.graph import StateGraph, START, END
+from src.shared.graph_builder import GraphSaver
 
 
 # ---- Logger ----
@@ -53,11 +54,13 @@ class AugGenPipeline:
         self.graph.add_edge("validation", END)
 
         self.compiled = self.graph.compile()
+        self.graph_saver = GraphSaver(filename="aug_gen_pipeline.png")
+
 
     # ---- Nodes ----
 
     async def augmentation_msg_builder_node(self, state: PipelineState) -> PipelineState:
-
+        print("=======> Building augmentation messages... <=======")
         if not state["queries"]:
             return state
 
@@ -69,31 +72,37 @@ class AugGenPipeline:
         )
 
         state["augmentation_messages"] = messages
+        print(f"Message: {messages[0]['data']}")
         return state
 
     async def generation_node(self, state: PipelineState) -> PipelineState:
+        print("=======> Generating augmentations... <=======")
 
         if not state["augmentation_messages"]:
             return state
 
-        loop = asyncio.get_running_loop()
-
         tasks = [
-            loop.run_in_executor(None, self.generator.generate, msg["data"])
+            self.generator.generate(msg["data"], max_tokens=1024)
             for msg in state["augmentation_messages"]
         ]
 
         results = await asyncio.gather(*tasks)
 
         state["generation_outputs"] = [
-            {"id": state["augmentation_messages"][i].get("id"), "data": results[i]}
+            {
+                "id": state["augmentation_messages"][i].get("id"),
+                "data": results[i]
+            }
             for i in range(len(results))
         ]
+
+        print(f"Generated {state['generation_outputs'][0]['data']}")
 
         return state
 
     async def extraction_node(self, state: PipelineState) -> PipelineState:
-
+        print("=======> Extracting information... <=======")
+        
         if not state["generation_outputs"]:
             return state
 
@@ -146,7 +155,7 @@ class AugGenPipeline:
             "validated_outputs": None,
             "final_output": None
         }
-
+        self.graph_saver.save(self.compiled)
         return await self.compiled.ainvoke(initial_state)  # type: ignore
     
     
