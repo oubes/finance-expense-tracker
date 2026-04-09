@@ -4,6 +4,7 @@ import asyncio
 
 from src.core.contracts.embeddings.embedder import EmbedderContract
 from src.infrastructure.embeddings.model_loader import ModelLoader
+from openai import AsyncOpenAI
 
 # ---- Logger Initialization ----
 logger = logging.getLogger(__name__)
@@ -13,11 +14,17 @@ logger = logging.getLogger(__name__)
 class Embedder(EmbedderContract):
 
     # ---- Constructor ----
-    def __init__(self, model_loader: ModelLoader, max_concurrency: int = 5, max_retries: int = 3, base_delay: float = 0.5):
+    def __init__(
+        self,
+        model_loader: ModelLoader,
+        max_concurrency: int = 5,
+        max_retries: int = 3,
+        base_delay: float = 0.5
+    ):
         logger.info("Initializing Embedder")
 
         self.model_loader = model_loader
-        self.client = self.model_loader.get_client()
+        self.client: AsyncOpenAI = self.model_loader.get_client()
         self.model = self.model_loader.get_embedding_model()
 
         self.semaphore = asyncio.Semaphore(max_concurrency)
@@ -37,7 +44,7 @@ class Embedder(EmbedderContract):
             if not clean:
                 continue
 
-            sanitized.append(clean[:4000])  # prevent oversized inputs
+            sanitized.append(clean[:4000])
 
         return sanitized
 
@@ -50,10 +57,9 @@ class Embedder(EmbedderContract):
 
             for attempt in range(self._max_retries):
                 try:
-                    logger.debug(f"Embedding single text attempt {attempt + 1}")
+                    logger.debug(f"Embedding attempt {attempt + 1}")
 
-                    response = await asyncio.to_thread(
-                        self.client.embeddings.create,
+                    response = await self.client.embeddings.create(
                         model=self.model,
                         input=safe_text,
                     )
@@ -66,14 +72,10 @@ class Embedder(EmbedderContract):
                     error_msg = str(e).lower()
 
                     logger.warning(
-                        f"Single embedding failed attempt {attempt + 1}: {error_msg}"
+                        f"Embedding failed attempt {attempt + 1}: {error_msg}"
                     )
 
-                    if "rate" in error_msg:
-                        sleep_time = self._base_delay * (2 ** attempt)
-                    else:
-                        sleep_time = self._base_delay
-
+                    sleep_time = self._base_delay * (2 ** attempt) if "rate" in error_msg else self._base_delay
                     await asyncio.sleep(sleep_time)
 
             logger.error("Single embedding failed after all retries")
@@ -88,15 +90,14 @@ class Embedder(EmbedderContract):
 
             for attempt in range(self._max_retries):
                 try:
-                    logger.debug(f"Batch worker attempt {attempt + 1} | batch_size={len(safe_batch)}")
+                    logger.debug(f"Batch attempt {attempt + 1} | size={len(safe_batch)}")
 
-                    response = await asyncio.to_thread(
-                        self.client.embeddings.create,
+                    response = await self.client.embeddings.create(
                         model=self.model,
                         input=safe_batch,
                     )
 
-                    logger.info("Batch embedding worker succeeded")
+                    logger.info("Batch embedding succeeded")
                     return [item.embedding for item in response.data]
 
                 except Exception as e:
@@ -107,11 +108,7 @@ class Embedder(EmbedderContract):
                         f"Batch embedding failed attempt {attempt + 1}: {error_msg}"
                     )
 
-                    if "rate" in error_msg:
-                        sleep_time = self._base_delay * (2 ** attempt)
-                    else:
-                        sleep_time = self._base_delay
-
+                    sleep_time = self._base_delay * (2 ** attempt) if "rate" in error_msg else self._base_delay
                     await asyncio.sleep(sleep_time)
 
             logger.error("Batch worker failed after all retries")
