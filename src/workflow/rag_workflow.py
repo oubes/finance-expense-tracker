@@ -3,7 +3,9 @@ import logging
 from typing import TypedDict, Any
 
 from langgraph.graph import StateGraph, START, END
+from src.shared.graph_builder import GraphSaver
 
+# ---- Logger ----
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +29,7 @@ class RAGWorkflow:
         self._build_graph()
 
         self.compiled = self.graph.compile()
+        self.graph_saver = GraphSaver("rag_workflow.png")
 
     # ---- Graph Builder ----
     def _build_graph(self) -> None:
@@ -100,5 +103,5 @@ class RAGWorkflow:
             "chunks": None,
             "final_output": None,
         }
-
+        self.graph_saver.save(self.compiled)
         return await self.compiled.ainvoke(initial_state)  # type: ignore
