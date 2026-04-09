@@ -120,10 +120,17 @@ class IngestionWorkflow:
     async def run_pipeline_node(self, state: IngestionState) -> IngestionState:
 
         result = await self.pipeline.run()
-        raw_output = result.get("final_pipeline_output", [])
+
+        if isinstance(result, dict):
+            raw_output = result.get("final_pipeline_output")
+        else:
+            raw_output = getattr(result, "final_pipeline_output", None)
+
+        if raw_output is None:
+            raise ValueError("Pipeline did not return final_pipeline_output")
 
         if not isinstance(raw_output, list):
-            raise TypeError("Pipeline output must be list")
+            raise TypeError(f"Pipeline output must be list, got {type(raw_output)}")
 
         logger.info(f"Pipeline returned {len(raw_output)} records")
 
