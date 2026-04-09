@@ -38,7 +38,6 @@ class VectorRetriever(RetrieverContract):
             rows = await self._execute(query_vector, limit)
 
             logger.info("stage=vector_retrieval_completed")
-
             return rows or []
 
         except Exception as e:

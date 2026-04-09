@@ -14,7 +14,6 @@ class BM25Retriever(RetrieverContract):
     def __init__(self, db_client, query_sql: str):
         self.db = db_client
         self.query_sql = query_sql
-
     # ---- Search ----
     async def search(self, input_query: str, limit: int = 10) -> list[dict[str, Any]]:
         logger.info("stage=bm25_retrieval_start")

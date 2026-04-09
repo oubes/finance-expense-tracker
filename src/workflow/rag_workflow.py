@@ -1,26 +1,104 @@
-class RAGWorkflow:
-    def __init__(self, aug_gen_pipeline, hybrid_retriever):
-        self.hybrid_retriever = hybrid_retriever
-        self.aug_gen_pipeline = aug_gen_pipeline
+# ---- Imports ----
+import logging
+from typing import TypedDict, Any
 
-    async def run(self):
-        # ---- Retrieval ----
-        result = await self.hybrid_retriever.search(
-            input_query="how many users my system must be able of handling?"
+from langgraph.graph import StateGraph, START, END
+
+logger = logging.getLogger(__name__)
+
+
+# ---- State ----
+class RAGState(TypedDict):
+    question: str
+    retrieved_docs: list[dict] | None
+    chunks: str | None
+    final_output: Any | None
+
+
+# ---- RAG Workflow ----
+class RAGWorkflow:
+
+    # ---- Constructor ----
+    def __init__(self, aug_gen_pipeline, hybrid_retriever):
+        self.aug_gen_pipeline = aug_gen_pipeline
+        self.hybrid_retriever = hybrid_retriever
+
+        self.graph = StateGraph(RAGState)
+        self._build_graph()
+
+        self.compiled = self.graph.compile()
+
+    # ---- Graph Builder ----
+    def _build_graph(self) -> None:
+
+        self.graph.add_node("retrieve", self.retrieve_node)
+        self.graph.add_node("extract_chunks", self.extract_chunks_node)
+        self.graph.add_node("augment_generate", self.augment_generate_node)
+
+        self.graph.add_edge(START, "retrieve")
+        self.graph.add_edge("retrieve", "extract_chunks")
+        self.graph.add_edge("extract_chunks", "augment_generate")
+        self.graph.add_edge("augment_generate", END)
+
+    # ---- Node: Retrieve ----
+    async def retrieve_node(self, state: RAGState) -> RAGState:
+
+        docs = await self.hybrid_retriever.search(
+            input_query=state["question"]
         )
 
-        print("Retrieval Result:")
-        print(result)
+        if not isinstance(docs, list):
+            raise TypeError(f"Retriever must return list, got {type(docs)}")
 
-        # ---- Augmentation + Generation ----
-        return await self.aug_gen_pipeline.run(
+        state["retrieved_docs"] = docs
+
+        logger.info(f"Retrieved docs: {len(docs)}")
+
+        return state
+
+    # ---- Node: Extract Chunks ----
+    async def extract_chunks_node(self, state: RAGState) -> RAGState:
+
+        docs = state.get("retrieved_docs") or []
+
+        chunks = " ".join(
+            (d.get("content") or "").strip()
+            for d in docs
+            if isinstance(d, dict)
+        )
+
+        state["chunks"] = chunks
+
+        logger.info(f"Chunks length: {len(chunks)}")
+
+        return state
+
+    # ---- Node: Augment + Generate ----
+    async def augment_generate_node(self, state: RAGState) -> RAGState:
+
+        result = await self.aug_gen_pipeline.run(
             queries=[
                 {
-                    "user_question": (
-                        "i'm getting paid 7200 EGP per month, and i want to save 2200 EGP, "
-                        "how should i divide my expenses?"
-                    ),
-                    "chunks": " ".join([d["text"] for d in result]),
+                    "user_question": state["question"],
+                    "chunks": state.get("chunks") or "",
                 }
             ]
         )
+
+        state["final_output"] = result
+
+        logger.info("Generation completed")
+
+        return state
+
+    # ---- Runner ----
+    async def run(self, question: str):
+
+        initial_state: RAGState = {
+            "question": question,
+            "retrieved_docs": None,
+            "chunks": None,
+            "final_output": None,
+        }
+
+        return await self.compiled.ainvoke(initial_state)  # type: ignore

@@ -107,23 +107,24 @@ async def get_count_chunks(client=Depends(get_db_client)):
 # ---- BM25 Retriever ----
 async def get_bm25_retriever(
     db_client: PostgresVectorClient = Depends(get_db_client),
-    query_sql: str = BM25_QUERY
 ) -> BM25Retriever:
     logger.info("Initializing BM25 Retriever")
-    return BM25Retriever(db_client=db_client, query_sql=query_sql)
+    return BM25Retriever(
+        db_client=db_client,
+        query_sql=BM25_QUERY,
+    )
 
 
 # ---- Vector Retriever ----
 async def get_vector_retriever(
     db_client: PostgresVectorClient = Depends(get_db_client),
     embedding_model=Depends(get_embedding),
-    query_sql: str = VECTOR_QUERY
 ) -> VectorRetriever:
     logger.info("Initializing Vector Retriever")
     return VectorRetriever(
         db_client=db_client,
         embedding_fn=embedding_model,
-        query_sql=query_sql,
+        query_sql=VECTOR_QUERY,
     )
     
     

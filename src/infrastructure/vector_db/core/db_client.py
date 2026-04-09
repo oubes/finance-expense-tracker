@@ -1,5 +1,6 @@
 # ---- Imports ----
 import logging
+from typing import Any
 
 from src.infrastructure.vector_db.core.db_conn import DBConnect
 from src.infrastructure.vector_db.extensions.db_vector_ext import VectorExtension
@@ -13,13 +14,18 @@ logger = logging.getLogger(__name__)
 class PostgresVectorClient:
 
     # ---- Constructor ----
-    def __init__(self, conn: DBConnect, db_executor: DBExecutor, vector_ext: VectorExtension):
+    def __init__(
+        self,
+        conn: DBConnect,
+        db_executor: DBExecutor,
+        vector_ext: VectorExtension
+    ):
         self.db = conn
         self.vector = vector_ext
         self.executor = db_executor
 
     # ---- Initialization ----
-    async def init(self):
+    async def init(self) -> bool:
         logger.info("Initializing PostgresVectorClient...")
 
         if not await self.db.connect():
@@ -40,7 +46,7 @@ class PostgresVectorClient:
         return True
 
     # ---- System Readiness Check ----
-    async def is_system_ready(self):
+    async def is_system_ready(self) -> bool:
         logger.debug("Checking system readiness...")
 
         db_ok = await self.db.is_alive()
@@ -57,7 +63,7 @@ class PostgresVectorClient:
         return ready
 
     # ---- Cleanup ----
-    async def close(self):
+    async def close(self) -> None:
         logger.info("Closing PostgresVectorClient...")
 
         try:
@@ -67,13 +73,61 @@ class PostgresVectorClient:
             logger.exception("Error while closing database connection.")
 
     # ---- Execute Query ----
-    async def execute(self, query, params=None, fetch: bool = False):
+    async def execute(
+        self,
+        query: str,
+        params: tuple | None = None,
+        fetch: bool = False
+    ) -> list[dict[str, Any]] | None:
         return await self.executor.execute(query, params=params, fetch=fetch)  # type: ignore
 
     # ---- Execute Single Row Query ----
-    async def execute_one(self, query, params=None):
+    async def execute_one(
+        self,
+        query: str,
+        params: tuple | None = None
+    ) -> dict[str, Any] | None:
         return await self.executor.execute_one(query, params=params)  # type: ignore
 
     # ---- Commit Transaction ----
-    async def commit(self):
+    async def commit(self) -> None:
         await self.executor.commit()  # type: ignore
+
+    # ---- Map Rows to Dicts ----
+    def map_to_dicts(
+        self,
+        rows: list[tuple[Any, ...]] | list[dict[str, Any]],
+        keys: list[str]
+    ) -> list[dict[str, Any]]:
+        result: list[dict[str, Any]] = []
+
+        for row in rows:
+            if isinstance(row, dict):
+                result.append(row)
+                continue
+
+            if len(row) != len(keys):
+                raise ValueError("Row length does not match keys length.")
+
+            mapped: dict[str, Any] = {}
+            for idx, key in enumerate(keys):
+                mapped[key] = row[idx]
+
+            result.append(mapped)
+
+        return result
+
+    # ---- Execute and Map to Dicts ----
+    async def execute_with_keys(
+        self,
+        query: str,
+        keys: list[str],
+        params: tuple | None = None,
+        fetch: bool = True
+    ) -> list[dict[str, Any]] | None:
+        rows = await self.execute(query, params=params, fetch=fetch)
+
+        if rows is None:
+            return None
+
+        return self.map_to_dicts(rows, keys)
