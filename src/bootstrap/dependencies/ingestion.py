@@ -10,6 +10,7 @@ from src.bootstrap.dependencies.settings import get_settings
 
 # ---- Infrastructure ----
 from src.bootstrap.dependencies.embeddings import get_embedding
+from src.bootstrap.dependencies.prompting import get_safe_generator
 from src.bootstrap.dependencies.llm import get_llm_generator
 from src.infrastructure.vector_db.core.db_client import PostgresVectorClient
 from src.bootstrap.dependencies.vector_db import (
@@ -35,13 +36,7 @@ from src.pipelines.v1.ingestion_pipeline import IngestionPipeline
 # ---- Workflow ----
 from src.workflow.ingestion_workflow import IngestionWorkflow
 
-# ---- Prompting ----
-from src.bootstrap.dependencies.prompting import (
-    get_msg_builder,
-    get_llm_json_extractor,
-    get_llm_json_validator,
-)
-
+# ---- Logger ----
 logger = logging.getLogger(__name__)
 
 
@@ -104,20 +99,14 @@ def get_ingestion_pipeline(
     pdf_loader: PyMuPDFDocumentLoader = Depends(get_pymupdf_loader),
     chunker: Chunker = Depends(get_chunker),
     embedding=Depends(get_embedding),
-    msg_builder=Depends(get_msg_builder),
-    llm_generator=Depends(get_llm_generator),
-    json_extractor=Depends(get_llm_json_extractor),
-    json_validator=Depends(get_llm_json_validator),
+    safe_generator=Depends(get_safe_generator),
 ) -> IngestionPipeline:
     return IngestionPipeline(
         config=settings,
         pdf_loader=pdf_loader,
         chunker=chunker,
         embedding=embedding,
-        llm_generator=llm_generator,
-        msg_builder=msg_builder,
-        json_extractor=json_extractor,
-        json_validator=json_validator,
+        safe_generator=safe_generator,
     )
 
 
