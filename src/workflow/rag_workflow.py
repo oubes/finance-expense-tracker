@@ -3,7 +3,6 @@ import logging
 from typing import TypedDict, Any
 
 from langgraph.graph import StateGraph, START, END
-
 from src.shared.graph_builder import GraphSaver
 
 # ---- Logger ----
@@ -13,11 +12,10 @@ logger = logging.getLogger(__name__)
 # ---- State ----
 class RAGState(TypedDict):
     question: str
-    messages: list[dict] | None
-    llm_raw: str | None
-    parsed_output: dict | None
-    validated_output: dict | None
     flag: str | None
+
+    messages: list[dict] | None
+    parsed_output: dict | None
 
     retrieved_docs: list[dict] | None
     chunks: str | None
@@ -30,17 +28,11 @@ class RAGWorkflow:
     # ---- Constructor ----
     def __init__(
         self,
-        msg_builder,
-        generator,
-        extractor,
-        validator,
+        safe_generator,
         aug_gen_pipeline,
         hybrid_retriever,
     ):
-        self.msg_builder = msg_builder
-        self.generator = generator
-        self.extractor = extractor
-        self.validator = validator
+        self.safe_generator = safe_generator
         self.aug_gen_pipeline = aug_gen_pipeline
         self.hybrid_retriever = hybrid_retriever
 
@@ -53,153 +45,149 @@ class RAGWorkflow:
     # ---- Graph Builder ----
     def _build_graph(self) -> None:
 
-        # ---- Entry Flow ----
-        self.graph.add_node("build_entry_msg", self.build_entry_msg_node)
-        self.graph.add_node("generate_entry", self.generate_node)
-        self.graph.add_node("extract_entry", self.extract_node)
-        self.graph.add_node("validate_entry", self.validate_node)
+        # ---- Core Nodes ----
+        self.graph.add_node("policy_router", self.policy_router_node)
 
-        # ---- Branches ----
-        self.graph.add_node("ask_more_info_msg", self.ask_more_info_msg_node)
-        self.graph.add_node("reject_msg", self.reject_msg_node)
+        # ---- Generation Nodes ----
+        self.graph.add_node("prepare_rejection_msg", self.prepare_rejection_msg_node)
+        self.graph.add_node("prepare_asking_msg", self.prepare_asking_msg_node)
+        self.graph.add_node("chat_msg_gen", self.chat_msg_node)
+        self.graph.add_node("mem_msg_gen", self.mem_msg_node)
+        self.graph.add_node("rag_msg_gen", self.rag_msg_node)
+        self.graph.add_node("mem_and_rag_gen", self.mem_and_rag_msg_node)
 
-        # ---- Retrieval Flow ----
-        self.graph.add_node("retrieve", self.retrieve_node)
-        self.graph.add_node("extract_chunks", self.extract_chunks_node)
-        self.graph.add_node("augment_generate_node", self.augment_generate_pipeline_node)
+        # ---- Data Nodes ----
+        self.graph.add_node("pull_mem", self.pull_mem_node)
+        self.graph.add_node("pull_mem_and_ret", self.pull_mem_and_ret_node)
 
         # ---- Edges ----
-        self.graph.add_edge(START, "build_entry_msg")
-        self.graph.add_edge("build_entry_msg", "generate_entry")
-        self.graph.add_edge("generate_entry", "extract_entry")
-        self.graph.add_edge("extract_entry", "validate_entry")
+        self.graph.add_edge(START, "policy_router")
 
-        # ---- Conditional Routing ----
+        # ---- Routing ----
         self.graph.add_conditional_edges(
-            "validate_entry",
+            "policy_router",
             self._route_flag,
             {
-                "SUCCESS": "retrieve",
-                "ASK_FOR_MORE_INFO": "ask_more_info_msg",
-                "REJECTED": "reject_msg",
+                "rejected": "prepare_rejection_msg",
+                "ask_for_more_info": "prepare_asking_msg",
+                "chat": "chat_msg_gen",
+                "mem": "pull_mem",
+                "rag": "rag_msg_gen",
+                "mem_and_rag": "pull_mem_and_ret",
             },
         )
 
-        # ---- Ask More Info Flow ----
-        self.graph.add_edge("ask_more_info_msg", "generate_entry")
-        self.graph.add_edge("generate_entry", "extract_entry")
-        self.graph.add_edge("extract_entry", "validate_entry")
+        # ---- Simple Paths ----
+        self.graph.add_edge("prepare_rejection_msg", END)
+        self.graph.add_edge("prepare_asking_msg", END)
+        self.graph.add_edge("chat_msg_gen", END)
+        self.graph.add_edge("rag_msg_gen", END)
 
-        # ---- Reject Flow ----
-        self.graph.add_edge("reject_msg", "generate_entry")
+        # ---- Memory Path ----
+        self.graph.add_edge("pull_mem", "mem_msg_gen")
+        self.graph.add_edge("mem_msg_gen", END)
 
-        # ---- Retrieval Flow ----
-        self.graph.add_edge("retrieve", "extract_chunks")
-        self.graph.add_edge("extract_chunks", "augment_generate_node")
-        self.graph.add_edge("augment_generate_node", END)
+        # ---- Mem + RAG Path ----
+        self.graph.add_edge("pull_mem_and_ret", "mem_and_rag_gen")
+        self.graph.add_edge("mem_and_rag_gen", END)
 
     # ---- Router ----
     def _route_flag(self, state: RAGState) -> str:
-        return state.get("flag") or "REJECTED"
+        return state.get("flag") or "rejected"
 
-    # ---- Node: Build Entry Msg ----
-    async def build_entry_msg_node(self, state: RAGState) -> RAGState:
+    # ---- Node: Policy Router ----
+    async def policy_router_node(self, state: RAGState) -> RAGState:
 
-        result = await self.msg_builder.build_async(
+        result = await self.safe_generator.run(
             prompt_file_name="entry_router",
-            user_question=state["question"],  # TODO: fill
-            context="",  # TODO: fill
+            user_question=state["question"],
+            context="",
         )
 
-        state["messages"] = result.get("data")
+        state["parsed_output"] = result
+
+        if result.get("state"):
+            state["flag"] = result["data"].get("flag")
 
         return state
 
-    # ---- Node: Ask More Info Msg ----
-    async def ask_more_info_msg_node(self, state: RAGState) -> RAGState:
+    # ---- Node: Rejection ----
+    async def prepare_rejection_msg_node(self, state: RAGState) -> RAGState:
 
-        result = await self.msg_builder.build_async(
-            prompt_file_name="more_info_request",
-            user_question=state["question"],  # TODO: fill
-            context="",  # TODO: fill
-        )
-
-        state["messages"] = result.get("data")
-
-        return state
-
-    # ---- Node: Reject Msg ----
-    async def reject_msg_node(self, state: RAGState) -> RAGState:
-
-        result = await self.msg_builder.build_async(
+        result = await self.safe_generator.run(
             prompt_file_name="rejection_response",
-            user_question=state["question"],  # TODO: fill
-            context="",  # TODO: fill
+            user_question=state["question"],
+            context="",
         )
 
-        state["messages"] = result.get("data")
+        state["final_output"] = result
+        return state
+
+    # ---- Node: Ask ----
+    async def prepare_asking_msg_node(self, state: RAGState) -> RAGState:
+
+        result = await self.safe_generator.run(
+            prompt_file_name="more_info_request",
+            user_question=state["question"],
+            context="",
+        )
+
+        state["final_output"] = result
+        return state
+
+    # ---- Node: Chat ----
+    async def chat_msg_node(self, state: RAGState) -> RAGState:
+
+        result = await self.safe_generator.run(
+            prompt_file_name="chat_response",
+            user_question=state["question"],
+            context="",
+        )
+
+        state["final_output"] = result
+        return state
+
+    # ---- Node: Pull Memory ----
+    async def pull_mem_node(self, state: RAGState) -> RAGState:
+
+        # TODO: replace with real memory retrieval
+        state["chunks"] = "memory context"
 
         return state
 
-    # ---- Node: Generate ----
-    async def generate_node(self, state: RAGState) -> RAGState:
+    # ---- Node: Memory Msg ----
+    async def mem_msg_node(self, state: RAGState) -> RAGState:
 
-        response = await self.generator.generate(  # type: ignore
-            messages=state.get("messages") or []
+        result = await self.safe_generator.run(
+            prompt_file_name="memory_response",
+            user_question=state["question"],
+            context=state.get("chunks") or "",
         )
 
-        state["llm_raw"] = response
-
+        state["final_output"] = result
         return state
 
-    # ---- Node: Extract ----
-    async def extract_node(self, state: RAGState) -> RAGState:
+    # ---- Node: RAG Msg ----
+    async def rag_msg_node(self, state: RAGState) -> RAGState:
 
-        parsed = await self.extractor.extract_one(
-            state.get("llm_raw") or ""
+        result = await self.aug_gen_pipeline.run(
+            queries=[
+                {
+                    "user_question": state["question"],
+                    "chunks": "",
+                }
+            ]
         )
 
-        state["parsed_output"] = parsed
-
+        state["final_output"] = result
         return state
 
-    # ---- Node: Validate ----
-    async def validate_node(self, state: RAGState) -> RAGState:
-
-        validated = self.validator.validate_one(
-            state.get("parsed_output") or {},
-            required_keys={"flag"},  # TODO: extend
-            allowed_flags={"SUCCESS", "ASK_FOR_MORE_INFO", "REJECTED"},
-        )
-
-        state["validated_output"] = validated
-
-        if validated.get("state"):
-            data = validated.get("data") or {}
-            state["flag"] = data.get("flag")
-
-        return state
-
-    # ---- Node: Retrieve ----
-    async def retrieve_node(self, state: RAGState) -> RAGState:
+    # ---- Node: Pull Mem + Retrieve ----
+    async def pull_mem_and_ret_node(self, state: RAGState) -> RAGState:
 
         docs = await self.hybrid_retriever.search(
             input_query=state["question"]
         )
-
-        if not isinstance(docs, list):
-            raise TypeError(f"Retriever must return list, got {type(docs)}")
-
-        state["retrieved_docs"] = docs
-
-        logger.info(f"Retrieved docs: {len(docs)}")
-
-        return state
-
-    # ---- Node: Extract Chunks ----
-    async def extract_chunks_node(self, state: RAGState) -> RAGState:
-
-        docs = state.get("retrieved_docs") or []
 
         chunks = " ".join(
             (d.get("content") or "").strip()
@@ -207,28 +195,20 @@ class RAGWorkflow:
             if isinstance(d, dict)
         )
 
-        state["chunks"] = chunks
-
-        logger.info(f"Chunks length: {len(chunks)}")
+        state["chunks"] = chunks + " memory context"
 
         return state
 
-    # ---- Node: Augment + Generate ----
-    async def augment_generate_pipeline_node(self, state: RAGState) -> RAGState:
+    # ---- Node: Mem + RAG Msg ----
+    async def mem_and_rag_msg_node(self, state: RAGState) -> RAGState:
 
-        result = await self.aug_gen_pipeline.run(
-            queries=[
-                {
-                    "user_question": state["question"],
-                    "chunks": state.get("chunks") or "",
-                }
-            ]
+        result = await self.safe_generator.run(
+            prompt_file_name="mem_and_rag_response",
+            user_question=state["question"],
+            context=state.get("chunks") or "",
         )
 
         state["final_output"] = result
-
-        logger.info("Generation completed")
-
         return state
 
     # ---- Runner ----
@@ -236,11 +216,9 @@ class RAGWorkflow:
 
         initial_state: RAGState = {
             "question": question,
-            "messages": None,
-            "llm_raw": None,
-            "parsed_output": None,
-            "validated_output": None,
             "flag": None,
+            "messages": None,
+            "parsed_output": None,
             "retrieved_docs": None,
             "chunks": None,
             "final_output": None,

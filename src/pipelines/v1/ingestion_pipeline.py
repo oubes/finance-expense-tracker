@@ -239,7 +239,7 @@ class IngestionPipeline:
             ]
 
             results = await self.msg_builder.build_batch_async(
-                prompt_file_name="summarizer",
+                prompt_file_name="chunk_summarizer",
                 inputs=inputs
             )
 
