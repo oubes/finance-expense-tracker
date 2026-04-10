@@ -40,7 +40,6 @@ class HybridRetriever(RetrieverContract):
         vector = self._attach_vector_scores(vector)
 
         merged = self._merge(bm25, vector)
-        print(f"=======> Merged Results {merged} <=======\n")
         results = list(merged.values())
 
         # ---- Rerank (Single Source of Truth) ----
