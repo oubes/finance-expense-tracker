@@ -5,6 +5,7 @@ import logging
 from fastapi import Depends
 
 # ---- Infrastructure ----
+from src.services.llm_services.safe_generator import SafeGenerator
 from src.bootstrap.dependencies.llm import get_llm_generator
 from src.infrastructure.llm.llm_generator import LLMGenerator
 
@@ -14,6 +15,7 @@ from src.bootstrap.dependencies.prompting import (
     get_llm_json_extractor,
     get_llm_json_validator,
 )
+from src.bootstrap.dependencies.prompting import get_safe_generator
 from src.modules.prompts.processing.llm_json_extractor import LLMJsonExtractor
 from src.modules.prompts.processing.llm_json_validator import LLMJsonValidator
 
@@ -73,10 +75,12 @@ def get_aug_gen_pipeline(
 def get_rag_workflow(
     aug_gen_pipeline: AugGenPipeline = Depends(get_aug_gen_pipeline),
     hybrid_retriever: HybridRetriever = Depends(get_hybrid_retriever),
+    safe_generator: SafeGenerator = Depends(get_safe_generator),
 ) -> RAGWorkflow:
     logger.info("Initializing RAG Workflow")
 
     return RAGWorkflow(
         aug_gen_pipeline=aug_gen_pipeline,
         hybrid_retriever=hybrid_retriever,
+        safe_generator=safe_generator,
     )

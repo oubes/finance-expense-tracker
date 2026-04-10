@@ -12,6 +12,7 @@ from src.bootstrap.dependencies.settings import get_settings
 from src.infrastructure.llm.model_loader import LLMClient
 from src.infrastructure.llm.llm_generator import LLMGenerator
 
+# ---- Logger ----
 logger = logging.getLogger(__name__)
 
 
@@ -28,3 +29,4 @@ def get_llm_generator(
 )-> LLMGenerator:
     logger.info("Initializing LLM Generator")
     return LLMGenerator(llm=llm_client, settings=settings)
+
