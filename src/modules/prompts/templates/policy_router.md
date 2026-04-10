@@ -18,7 +18,7 @@ Classify financial input AND structure it for downstream retrieval.
   "context": "<explicit facts only OR NONE>",
   "complexity": "<LOW | MEDIUM | HIGH>",
   "flag": "<RAG_FLAG | MEMORY_FLAG | RAG_AND_MEMORY_FLAG | CHAT_FLAG | REJECTION_FLAG>",
-  "reason": "<short response for the user telling them the reason behind the flag and explaining what should he do>"
+  "reason": "<short response for the user telling them the reason behind the flag and explaining what should he say to get a direct answer>"
   "title": "<minimalist title>"
   "chat_response": "<if CHAT_FLAG, provide direct answer here or ask him for more info if needed for the answer>"
   "summary": "<ultra-dense plain text summary only>"

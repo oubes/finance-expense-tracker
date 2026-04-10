@@ -16,6 +16,7 @@ class RAGState(TypedDict):
 
     chunks: str | None
     memory: str | None
+    context: str | None
 
     # ---- Policy Layer ----
     flag: Literal[
@@ -119,12 +120,14 @@ class RAGWorkflow:
             state["flag"] = payload.get("flag")
             state["reason"] = payload.get("reason")
             state["chat_response"] = payload.get("chat_response")
+            state["context"] = payload.get("context")
 
         except Exception as e:
             logger.exception(f"[policy_router] failed: {e}")
             state["flag"] = "REJECTION_FLAG"
             state["reason"] = "policy_router_error"
             state["chat_response"] = None
+            state["context"] = None
 
         return state
 
@@ -233,6 +236,7 @@ class RAGWorkflow:
         initial_state: RAGState = {
             "user_query": user_query,
             "chunks": None,
+            "context": None,
             "memory": None,
             "flag": None,
             "reason": None,
