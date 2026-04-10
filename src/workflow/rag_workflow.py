@@ -1,9 +1,10 @@
 # ---- Imports ----
 import logging
-from typing import TypedDict, Any
+from typing import TypedDict, Any, Literal
 
 from langgraph.graph import StateGraph, START, END
 from src.shared.graph_builder import GraphSaver
+
 
 # ---- Logger ----
 logger = logging.getLogger(__name__)
@@ -11,29 +12,27 @@ logger = logging.getLogger(__name__)
 
 # ---- State ----
 class RAGState(TypedDict):
-    question: str
-    flag: str | None
-
-    messages: list[dict] | None
-    parsed_output: dict | None
-
-    retrieved_docs: list[dict] | None
+    user_query: str
     chunks: str | None
+
+    # ---- Policy Layer ----
+    flag: Literal["RAG_FLAG", "REJECTION_FLAG", "CHAT_FLAG"] | None
+    reason: str | None
+    chat_response: str | None
+
+    # ---- Output ----
     final_output: Any | None
 
 
-# ---- RAG Workflow ----
+# ---- Workflow ----
 class RAGWorkflow:
 
-    # ---- Constructor ----
     def __init__(
         self,
         safe_generator,
-        aug_gen_pipeline,
         hybrid_retriever,
     ):
         self.safe_generator = safe_generator
-        self.aug_gen_pipeline = aug_gen_pipeline
         self.hybrid_retriever = hybrid_retriever
 
         self.graph = StateGraph(RAGState)
@@ -42,185 +41,187 @@ class RAGWorkflow:
         self.compiled = self.graph.compile()
         self.graph_saver = GraphSaver("rag_workflow.png")
 
-    # ---- Graph Builder ----
+    # ---- Graph Definition ----
     def _build_graph(self) -> None:
 
-        # ---- Core Nodes ----
+        # ---- Nodes ----
         self.graph.add_node("policy_router", self.policy_router_node)
+        self.graph.add_node("retrieve", self.retrieve_node)
+        self.graph.add_node("safe_generation", self.safe_generation_node)
+        self.graph.add_node("chat_node", self.chat_node)
+        self.graph.add_node("rejection_node", self.rejection_node)
 
-        # ---- Generation Nodes ----
-        self.graph.add_node("prepare_rejection_msg", self.prepare_rejection_msg_node)
-        self.graph.add_node("prepare_asking_msg", self.prepare_asking_msg_node)
-        self.graph.add_node("chat_msg_gen", self.chat_msg_node)
-        self.graph.add_node("mem_msg_gen", self.mem_msg_node)
-        self.graph.add_node("rag_msg_gen", self.rag_msg_node)
-        self.graph.add_node("mem_and_rag_gen", self.mem_and_rag_msg_node)
-
-        # ---- Data Nodes ----
-        self.graph.add_node("pull_mem", self.pull_mem_node)
-        self.graph.add_node("pull_mem_and_ret", self.pull_mem_and_ret_node)
-
-        # ---- Edges ----
+        # ---- Entry ----
         self.graph.add_edge(START, "policy_router")
 
-        # ---- Routing ----
+        # ---- Conditional Routing ----
         self.graph.add_conditional_edges(
             "policy_router",
-            self._route_flag,
+            self._route_decision,
             {
-                "rejected": "prepare_rejection_msg",
-                "ask_for_more_info": "prepare_asking_msg",
-                "chat": "chat_msg_gen",
-                "mem": "pull_mem",
-                "rag": "rag_msg_gen",
-                "mem_and_rag": "pull_mem_and_ret",
+                "REJECTION_FLAG": "rejection_node",
+                "CHAT_FLAG": "chat_node",
+                "RAG_FLAG": "retrieve",
             },
         )
 
-        # ---- Simple Paths ----
-        self.graph.add_edge("prepare_rejection_msg", END)
-        self.graph.add_edge("prepare_asking_msg", END)
-        self.graph.add_edge("chat_msg_gen", END)
-        self.graph.add_edge("rag_msg_gen", END)
+        # ---- RAG Path ----
+        self.graph.add_edge("retrieve", "safe_generation")
+        self.graph.add_edge("safe_generation", END)
 
-        # ---- Memory Path ----
-        self.graph.add_edge("pull_mem", "mem_msg_gen")
-        self.graph.add_edge("mem_msg_gen", END)
+        # ---- Terminal Paths ----
+        self.graph.add_edge("chat_node", END)
+        self.graph.add_edge("rejection_node", END)
 
-        # ---- Mem + RAG Path ----
-        self.graph.add_edge("pull_mem_and_ret", "mem_and_rag_gen")
-        self.graph.add_edge("mem_and_rag_gen", END)
+    # ---- Router Logic ----
+    def _route_decision(self, state: RAGState) -> str:
+        return state.get("flag") or "REJECTION_FLAG"
 
-    # ---- Router ----
-    def _route_flag(self, state: RAGState) -> str:
-        return state.get("flag") or "rejected"
-
-    # ---- Node: Policy Router ----
+    # ---- Policy Router Node ----
     async def policy_router_node(self, state: RAGState) -> RAGState:
+        logger.info("[policy_router] start")
 
-        result = await self.safe_generator.run(
-            prompt_file_name="entry_router",
-            user_question=state["question"],
-            context="",
-        )
+        try:
+            result = await self.safe_generator.run(
+                prompt_file_name="policy_router",
+                content=state["user_query"],
+                context="",
+            )
 
-        state["parsed_output"] = result
+            payload = result.get("data") if isinstance(result.get("data"), dict) else result
 
-        if result.get("state"):
-            state["flag"] = result["data"].get("flag")
+            print(f"\n\n=========> policy_router result={result} <=========\n\n")
 
-        return state
+            state["flag"] = payload.get("flag")
+            state["reason"] = payload.get("reason")
+            state["chat_response"] = payload.get("chat_response")
 
-    # ---- Node: Rejection ----
-    async def prepare_rejection_msg_node(self, state: RAGState) -> RAGState:
+            print(f"=========> flag={state['flag']} reason={state['reason']} <=========")
 
-        result = await self.safe_generator.run(
-            prompt_file_name="rejection_response",
-            user_question=state["question"],
-            context="",
-        )
+            logger.info(
+                f"[policy_router] flag={state['flag']} reason={state['reason']}"
+            )
 
-        state["final_output"] = result
-        return state
-
-    # ---- Node: Ask ----
-    async def prepare_asking_msg_node(self, state: RAGState) -> RAGState:
-
-        result = await self.safe_generator.run(
-            prompt_file_name="more_info_request",
-            user_question=state["question"],
-            context="",
-        )
-
-        state["final_output"] = result
-        return state
-
-    # ---- Node: Chat ----
-    async def chat_msg_node(self, state: RAGState) -> RAGState:
-
-        result = await self.safe_generator.run(
-            prompt_file_name="chat_response",
-            user_question=state["question"],
-            context="",
-        )
-
-        state["final_output"] = result
-        return state
-
-    # ---- Node: Pull Memory ----
-    async def pull_mem_node(self, state: RAGState) -> RAGState:
-
-        # TODO: replace with real memory retrieval
-        state["chunks"] = "memory context"
+        except Exception as e:
+            logger.exception(f"[policy_router] failed: {e}")
+            state["flag"] = "REJECTION_FLAG"
+            state["reason"] = "policy_router_error"
+            state["chat_response"] = None
 
         return state
 
-    # ---- Node: Memory Msg ----
-    async def mem_msg_node(self, state: RAGState) -> RAGState:
+    # ---- Chat Node ----
+    async def chat_node(self, state: RAGState) -> RAGState:
+        logger.info("[chat_node] start")
 
-        result = await self.safe_generator.run(
-            prompt_file_name="memory_response",
-            user_question=state["question"],
-            context=state.get("chunks") or "",
-        )
+        try:
+            state["final_output"] = {
+                "response": state.get("chat_response"),
+                "flag": state.get("flag"),
+                "reason": state.get("reason"),
+            }
 
-        state["final_output"] = result
+            logger.info("[chat_node] completed")
+
+        except Exception as e:
+            logger.exception(f"[chat_node] failed: {e}")
+            state["final_output"] = {
+                "response": None,
+                "flag": "CHAT_FLAG",
+                "reason": "chat_node_error",
+            }
+
+        print(f"=========> {state['final_output']} <=========")
         return state
 
-    # ---- Node: RAG Msg ----
-    async def rag_msg_node(self, state: RAGState) -> RAGState:
+    # ---- Rejection Node ----
+    async def rejection_node(self, state: RAGState) -> RAGState:
+        logger.info("[rejection_node] start")
 
-        result = await self.aug_gen_pipeline.run(
-            queries=[
-                {
-                    "user_question": state["question"],
-                    "chunks": "",
-                }
-            ]
-        )
+        try:
+            state["final_output"] = {
+                "response": state.get("reason"),
+                "flag": state.get("flag"),
+                "reason": state.get("reason"),
+            }
 
-        state["final_output"] = result
+            logger.info("[rejection_node] completed")
+
+        except Exception as e:
+            logger.exception(f"[rejection_node] failed: {e}")
+            state["final_output"] = {
+                "response": "Request rejected.",
+                "flag": "REJECTION_FLAG",
+                "reason": "rejection_node_error",
+            }
+
+        print(f"=========> {state['final_output']} <=========")
         return state
 
-    # ---- Node: Pull Mem + Retrieve ----
-    async def pull_mem_and_ret_node(self, state: RAGState) -> RAGState:
+    # ---- Retrieve Node ----
+    async def retrieve_node(self, state: RAGState) -> RAGState:
+        logger.info("[retrieve] start")
 
-        docs = await self.hybrid_retriever.search(
-            input_query=state["question"]
-        )
+        try:
+            chunks = await self.hybrid_retriever.search(
+                input_query=state["user_query"],
+                limit=1,
+            )
 
-        chunks = " ".join(
-            (d.get("content") or "").strip()
-            for d in docs
-            if isinstance(d, dict)
-        )
+            state["chunks"] = " ".join(
+                (d.get("content") or "").strip()
+                for d in chunks
+                if isinstance(d, dict)
+            )
 
-        state["chunks"] = chunks + " memory context"
+            logger.info("[retrieve] completed")
+
+        except Exception as e:
+            logger.exception(f"[retrieve] failed: {e}")
+            state["chunks"] = ""
 
         return state
 
-    # ---- Node: Mem + RAG Msg ----
-    async def mem_and_rag_msg_node(self, state: RAGState) -> RAGState:
+    # ---- Safe Generation Node ----
+    async def safe_generation_node(self, state: RAGState) -> RAGState:
+        logger.info("[safe_generation] start")
 
-        result = await self.safe_generator.run(
-            prompt_file_name="mem_and_rag_response",
-            user_question=state["question"],
-            context=state.get("chunks") or "",
-        )
+        try:
+            result = await self.safe_generator.run(
+                prompt_file_name="aug_gen",
+                user_question=state["user_query"],
+                context=state.get("chunks") or "",
+            )
 
-        state["final_output"] = result
+            state["final_output"] = {
+                "response": result,
+                "flag": state.get("flag"),
+                "reason": state.get("reason"),
+            }
+
+            logger.info("[safe_generation] completed")
+
+        except Exception as e:
+            logger.exception(f"[safe_generation] failed: {e}")
+            state["final_output"] = {
+                "response": None,
+                "flag": state.get("flag"),
+                "reason": state.get("reason"),
+            }
+
+        print(f"=========> {state['final_output']} <=========")
+
         return state
 
     # ---- Runner ----
-    async def run(self, question: str):
+    async def run(self, user_query: str):
 
         initial_state: RAGState = {
-            "question": question,
-            "flag": None,
-            "messages": None,
-            "parsed_output": None,
-            "retrieved_docs": None,
+            "user_query": user_query,
             "chunks": None,
+            "flag": None,
+            "reason": None,
+            "chat_response": None,
             "final_output": None,
         }
 

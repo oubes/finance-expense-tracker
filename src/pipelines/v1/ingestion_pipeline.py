@@ -14,7 +14,6 @@ from src.shared.graph_builder import GraphSaver
 
 # ---- Logger ----
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 PIPELINE_VERSION = "1.0"
 
