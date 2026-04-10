@@ -14,18 +14,18 @@ router = APIRouter()
 
 # ---- Request Schema ----
 class RAGRequest(BaseModel):
-    question: str
+    user_query: str
 
 
 # ---- Run RAG Workflow ----
-@router.post("/run")
+@router.post("/run_workflow")
 async def run_rag_workflow(
     body: RAGRequest,
     workflow=Depends(get_rag_workflow),
 ):
     logger.info("Starting rag workflow execution")
 
-    result = await workflow.run(question=body.question)
+    result = await workflow.run(user_query=body.user_query)
 
     logger.info("Rag workflow execution completed")
 

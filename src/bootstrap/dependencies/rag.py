@@ -6,18 +6,9 @@ from fastapi import Depends
 
 # ---- Infrastructure ----
 from src.services.llm_services.safe_generator import SafeGenerator
-from src.bootstrap.dependencies.llm import get_llm_generator
-from src.infrastructure.llm.llm_generator import LLMGenerator
 
 # ---- Prompting ----
-from src.bootstrap.dependencies.prompting import (
-    get_msg_builder,
-    get_llm_json_extractor,
-    get_llm_json_validator,
-)
 from src.bootstrap.dependencies.prompting import get_safe_generator
-from src.modules.prompts.processing.llm_json_extractor import LLMJsonExtractor
-from src.modules.prompts.processing.llm_json_validator import LLMJsonValidator
 
 # ---- Retrieval ----
 from src.bootstrap.dependencies.vector_db import (
@@ -28,9 +19,6 @@ from src.bootstrap.dependencies.vector_db import (
 
 # ---- Services ----
 from src.services.db_services.operations.hybrid_retriever import HybridRetriever
-
-# ---- Pipeline ----
-from src.pipelines.v1.aug_gen_pipeline import AugGenPipeline
 
 # ---- Workflow ----
 from src.workflow.rag_workflow import RAGWorkflow
@@ -53,34 +41,14 @@ def get_hybrid_retriever(
         reranker=reranker,
     )
 
-
-# ---- AugGen Pipeline ----
-def get_aug_gen_pipeline(
-    msg_builder=Depends(get_msg_builder),
-    generator: LLMGenerator = Depends(get_llm_generator),
-    extractor: LLMJsonExtractor = Depends(get_llm_json_extractor),
-    validator: LLMJsonValidator = Depends(get_llm_json_validator),
-) -> AugGenPipeline:
-    logger.info("Initializing AugGen Pipeline")
-
-    return AugGenPipeline(
-        msg_builder=msg_builder,
-        generator=generator,
-        extractor=extractor,
-        validator=validator,
-    )
-
-
 # ---- RAG Workflow ----
 def get_rag_workflow(
-    aug_gen_pipeline: AugGenPipeline = Depends(get_aug_gen_pipeline),
     hybrid_retriever: HybridRetriever = Depends(get_hybrid_retriever),
     safe_generator: SafeGenerator = Depends(get_safe_generator),
 ) -> RAGWorkflow:
     logger.info("Initializing RAG Workflow")
 
     return RAGWorkflow(
-        aug_gen_pipeline=aug_gen_pipeline,
         hybrid_retriever=hybrid_retriever,
         safe_generator=safe_generator,
     )
