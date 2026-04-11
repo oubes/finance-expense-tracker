@@ -17,17 +17,17 @@ from src.modules.rag.retrieval.vector_ret import VectorRetriever
 from src.modules.rag.rerank.reranker import Reranker
 
 # ---- Queries ----
-from src.services.db_services.queries.chunk_queries import (
+from src.services.db_services.queries.chunking.chunk_queries import (
     CREATE_CHUNKS_TABLE_SQL,
     INSERT_CHUNK_SQL,
     DELETE_CHUNKS_SQL,
     COUNT_CHUNKS_SQL,
 )
 
-from src.services.db_services.queries.rag_queries import BM25_QUERY, VECTOR_QUERY
+from src.services.db_services.queries.retrieve.rag_queries import BM25_QUERY, VECTOR_QUERY
 
 # ---- Ops ----
-from src.services.db_services.operations.chunk_ops import (
+from src.services.db_services.operations.chunking.chunk_ops import (
     init_chunks_table,
     upsert_chunks,
     delete_all_chunks,
