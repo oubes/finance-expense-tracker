@@ -26,7 +26,4 @@ async def lifespan(app: FastAPI):
         
     finally:
         # ---- Shutdown ----
-        # if hasattr(app.state, "db_client"):
-            # await db_client.close()
-        
         logger.info("App is shutting down...")
