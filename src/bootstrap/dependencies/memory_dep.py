@@ -7,10 +7,10 @@ from fastapi import Depends
 
 # ---- Core Config ----
 from src.core.config.settings import AppSettings
-from src.bootstrap.dependencies.settings import get_settings
+from src.bootstrap.dependencies.settings_dep import get_settings
 
 # ---- Infrastructure ----
-from src.bootstrap.dependencies.vector_db import get_db_client
+from src.bootstrap.dependencies.vector_db_dep import get_db_client
 
 # ---- Operations ----
 from src.services.memory.working.operations.stm_buffer_ops import STMBufferOps

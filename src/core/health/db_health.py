@@ -3,7 +3,7 @@ import time
 import asyncio
 import logging
 from src.core.schemas.health.health_schemas import DependencyResult, DBHealthData
-from src.bootstrap.dependencies.vector_db import get_settings, get_db_client
+from src.bootstrap.dependencies.vector_db_dep import get_settings, get_db_client
 
 # ---- Logger Initialization ----
 logger = logging.getLogger(__name__)

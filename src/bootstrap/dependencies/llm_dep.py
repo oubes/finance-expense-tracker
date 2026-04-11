@@ -6,7 +6,7 @@ from fastapi import Depends
 
 # ---- Core Config ----
 from src.core.config.settings import AppSettings
-from src.bootstrap.dependencies.settings import get_settings
+from src.bootstrap.dependencies.settings_dep import get_settings
 
 # ---- Infrastructure ----
 from src.infrastructure.llm.model_loader import LLMClient

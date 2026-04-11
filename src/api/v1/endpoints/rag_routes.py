@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from src.bootstrap.dependencies.rag import get_rag_workflow
+from src.bootstrap.dependencies.rag_dep import get_rag_workflow
 
 # ---- Logger ----
 logger = logging.getLogger(__name__)

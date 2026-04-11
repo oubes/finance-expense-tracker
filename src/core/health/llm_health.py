@@ -2,7 +2,7 @@
 import time
 import asyncio
 import logging
-from src.bootstrap.dependencies.llm import get_llm_client
+from src.bootstrap.dependencies.llm_dep import get_llm_client
 from src.core.schemas.health.health_schemas import DependencyResult, LLMHealthData
 
 # ---- Logger Initialization ----
@@ -33,7 +33,7 @@ class LLMHealth:
                 )
 
             # ---- Response Validation ----
-            if not response or not response.choices:
+            if not response or not response.choices: # type: ignore
                 raise ValueError("Empty response from LLM")
 
             latency = (time.perf_counter() - start) * 1000

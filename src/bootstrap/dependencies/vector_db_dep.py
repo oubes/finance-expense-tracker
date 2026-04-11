@@ -4,8 +4,8 @@ from fastapi import Depends
 
 # ---- Core ----
 from src.core.config.settings import AppSettings
-from src.bootstrap.dependencies.settings import get_settings
-from src.bootstrap.dependencies.embeddings import get_embedding
+from src.bootstrap.dependencies.settings_dep import get_settings
+from src.bootstrap.dependencies.embeddings_dep import get_embedding
 
 # ---- DB Core ----
 from src.infrastructure.vector_db.core.db_conn import DBConnect

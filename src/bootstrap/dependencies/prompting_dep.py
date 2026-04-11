@@ -5,9 +5,9 @@ import logging
 from fastapi import Depends
 
 # ---- Infrastructure ----
-from src.bootstrap.dependencies.llm import get_llm_generator
+from src.bootstrap.dependencies.llm_dep import get_llm_generator
 from src.infrastructure.llm.llm_generator import LLMGenerator
-from src.bootstrap.dependencies.settings import get_settings
+from src.bootstrap.dependencies.settings_dep import get_settings
 from src.core.config.settings import AppSettings
 
 # ---- Prompts ----

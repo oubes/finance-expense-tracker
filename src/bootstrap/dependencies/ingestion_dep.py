@@ -6,14 +6,14 @@ from fastapi import Depends
 
 # ---- Core ----
 from src.core.config.settings import AppSettings
-from src.bootstrap.dependencies.settings import get_settings
+from src.bootstrap.dependencies.settings_dep import get_settings
 
 # ---- Infrastructure ----
-from src.bootstrap.dependencies.embeddings import get_embedding
-from src.bootstrap.dependencies.prompting import get_safe_generator
-from src.bootstrap.dependencies.llm import get_llm_generator
+from src.bootstrap.dependencies.embeddings_dep import get_embedding
+from src.bootstrap.dependencies.prompting_dep import get_safe_generator
+from src.bootstrap.dependencies.llm_dep import get_llm_generator
 from src.infrastructure.vector_db.core.db_client import PostgresVectorClient
-from src.bootstrap.dependencies.vector_db import (
+from src.bootstrap.dependencies.vector_db_dep import (
     get_db_client,
     get_init_chunks_table,
     get_upsert_chunks,

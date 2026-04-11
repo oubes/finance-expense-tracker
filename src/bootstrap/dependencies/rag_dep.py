@@ -8,10 +8,10 @@ from fastapi import Depends
 from src.services.llm_services.safe_generator import SafeGenerator
 
 # ---- Prompting ----
-from src.bootstrap.dependencies.prompting import get_safe_generator
+from src.bootstrap.dependencies.prompting_dep import get_safe_generator
 
 # ---- Retrieval ----
-from src.bootstrap.dependencies.vector_db import (
+from src.bootstrap.dependencies.vector_db_dep import (
     get_bm25_retriever,
     get_vector_retriever,
     get_reranker,

@@ -1,7 +1,7 @@
 # ---- Imports ----
 import logging
 from fastapi import APIRouter, Depends
-from src.bootstrap.dependencies.ingestion import get_ingestion_workflow_entrypoint
+from src.bootstrap.dependencies.ingestion_dep import get_ingestion_workflow_entrypoint
 
 # ---- Logger ----
 logger = logging.getLogger(__name__)

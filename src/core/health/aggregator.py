@@ -6,7 +6,6 @@ from src.core.schemas.health.health_schemas import DependencyResult
 
 from src.core.health.app_health import get_app_health
 from src.core.health.db_health import check_db
-from src.core.health.redis_health import check_redis
 from src.core.health.llm_health import LLMHealth
 from src.core.health.embedder_health import EmbedderHealth
 from src.core.health.cross_encoder_health import CrossEncoderHealth
@@ -29,7 +28,6 @@ async def get_readiness(response: Response) -> dict:
     dependencies: dict[str, DependencyResult] = {
         "app": await get_app_health(),
         "database": await check_db(),
-        "redis": await check_redis(),
         "llm": await llm_health.check(),
         "embedder": await embedder_health.check(),
         "cross_encoder": await cross_encoder_health.check(),

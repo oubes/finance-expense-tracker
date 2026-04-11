@@ -1,7 +1,7 @@
 # ---- Imports ----
 import time
 import logging
-from src.bootstrap.dependencies.embeddings import get_embedding_model, get_settings
+from src.bootstrap.dependencies.embeddings_dep import get_embedding_model, get_settings
 from src.infrastructure.embeddings.embedder import Embedder
 from src.core.schemas.health.health_schemas import DependencyResult, EmbedderHealthData
 
