@@ -18,7 +18,7 @@ from src.bootstrap.dependencies.vector_db import (
 )
 
 # ---- Services ----
-from src.services.db_services.operations.retrieve.hybrid_retriever import HybridRetriever
+from src.services.retrieve.operations.hybrid_retriever import HybridRetriever
 
 # ---- Workflow ----
 from src.workflow.rag_workflow import RAGWorkflow
