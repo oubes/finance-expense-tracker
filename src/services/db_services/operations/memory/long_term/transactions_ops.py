@@ -6,71 +6,64 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# ---- Transactions Ops ----
+# ---- Transactions Ops (Memory Event Log) ----
 class TransactionsOps:
 
-    # ---- Constructor ----
     def __init__(self, db_client, queries):
         self.db = db_client
-        self.q = queries
+        self.queries = queries
 
     # ---- INIT ----
     async def init(self) -> bool:
         try:
-            await self.db.execute(self.q.CREATE_TABLE)
-            await self.db.execute(self.q.CREATE_INDEX)
+            await self.db.execute(self.queries.CREATE_TABLE)
+            await self.db.execute(self.queries.CREATE_INDEX)
             await self.db.commit()
             return True
+
         except Exception as e:
             logger.exception(f"[TransactionsOps] init failed: {e}")
             return False
 
-    # ---- ADD ----
-    async def add(self, data: tuple) -> bool:
+    # ---- LOG EVENT ----
+    async def log_event(self, data: tuple) -> bool:
         try:
-            await self.db.execute(self.q.INSERT_TRANSACTION, data)
+            await self.db.execute(self.queries.INSERT_EVENT, data)
             await self.db.commit()
             return True
+
         except Exception as e:
-            logger.exception(f"[TransactionsOps] add failed: {e}")
+            logger.exception(f"[TransactionsOps] log_event failed: {e}")
             return False
 
-    # ---- UPDATE ----
-    async def update(self, data: tuple) -> bool:
+    # ---- GET USER EVENTS ----
+    async def get_user_events(self, user_id: str):
         try:
-            await self.db.execute(self.q.UPDATE_TRANSACTION, data)
-            await self.db.commit()
-            return True
-        except Exception as e:
-            logger.exception(f"[TransactionsOps] update failed: {e}")
-            return False
-
-    # ---- DELETE ----
-    async def delete(self, transaction_id: int, user_id: str) -> bool:
-        try:
-            await self.db.execute(
-                self.q.DELETE_TRANSACTION,
-                (transaction_id, user_id)
+            return await self.db.execute(
+                self.queries.GET_USER_EVENTS,
+                (user_id,)
             )
-            await self.db.commit()
-            return True
         except Exception as e:
-            logger.exception(f"[TransactionsOps] delete failed: {e}")
-            return False
+            logger.exception(f"[TransactionsOps] get_user_events failed: {e}")
+            return []
 
-    # ---- FETCH ----
-    async def fetch_by_user(self, user_id: str) -> list[dict] | None:
+    # ---- GET DOMAIN EVENTS ----
+    async def get_by_domain(self, user_id: str, domain: str):
         try:
-            return await self.db.execute(self.q.GET_BY_USER, (user_id,))
+            return await self.db.execute(
+                self.queries.GET_BY_DOMAIN,
+                (user_id, domain)
+            )
         except Exception as e:
-            logger.exception(f"[TransactionsOps] fetch failed: {e}")
-            return None
+            logger.exception(f"[TransactionsOps] get_by_domain failed: {e}")
+            return []
 
     # ---- COUNT ----
-    async def count(self, user_id: str) -> int:
+    async def count(self) -> int:
         try:
-            row = await self.db.execute_one(self.q.COUNT_BY_USER, (user_id,))
+            row = await self.db.execute_one(self.queries.COUNT_ROWS)
             return row["total"] if row else 0
+
         except Exception as e:
             logger.exception(f"[TransactionsOps] count failed: {e}")
             return 0

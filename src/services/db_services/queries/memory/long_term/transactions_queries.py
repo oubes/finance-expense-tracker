@@ -1,63 +1,61 @@
-# ---- Transactions Queries ----
+# ---- Memory Transactions Queries ----
 
+
+# ---- TABLE ----
 CREATE_TABLE = """
-CREATE TABLE IF NOT EXISTS user_transactions (
+CREATE TABLE IF NOT EXISTS memory_transactions (
     id SERIAL PRIMARY KEY,
+
     user_id TEXT NOT NULL,
+    domain TEXT NOT NULL,          -- facts | tags | chunks | conversation
+    operation TEXT NOT NULL,       -- insert | update | delete
 
-    amount NUMERIC NOT NULL,
-    category TEXT,
-    description TEXT,
-
-    transaction_type TEXT, -- expense | income
+    payload JSONB,
 
     created_at TIMESTAMP DEFAULT NOW()
 );
 """
 
+
+# ---- INDEX ----
 CREATE_INDEX = """
-CREATE INDEX IF NOT EXISTS idx_user_transactions_user_id
-ON user_transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_memory_tx_user_domain
+ON memory_transactions(user_id, domain);
 """
 
-# ---- INSERT ----
-INSERT_TRANSACTION = """
-INSERT INTO user_transactions (
-    user_id, amount, category, description,
-    transaction_type, created_at
+
+# ---- INSERT EVENT ----
+INSERT_EVENT = """
+INSERT INTO memory_transactions (
+    user_id,
+    domain,
+    operation,
+    payload
 )
-VALUES ($1,$2,$3,$4,$5,$6);
+VALUES ($1, $2, $3, $4);
 """
 
-# ---- UPDATE ----
-UPDATE_TRANSACTION = """
-UPDATE user_transactions
-SET 
-    amount = $2,
-    category = $3,
-    description = $4,
-    transaction_type = $5,
-    created_at = $6
-WHERE id = $1 AND user_id = $7;
-"""
 
-# ---- DELETE ----
-DELETE_TRANSACTION = """
-DELETE FROM user_transactions
-WHERE id = $1 AND user_id = $2;
-"""
-
-# ---- FETCH BY USER ----
-GET_BY_USER = """
+# ---- GET USER EVENTS ----
+GET_USER_EVENTS = """
 SELECT *
-FROM user_transactions
+FROM memory_transactions
 WHERE user_id = $1
 ORDER BY created_at DESC;
 """
 
+
+# ---- GET BY DOMAIN ----
+GET_BY_DOMAIN = """
+SELECT *
+FROM memory_transactions
+WHERE user_id = $1 AND domain = $2
+ORDER BY created_at DESC;
+"""
+
+
 # ---- COUNT ----
-COUNT_BY_USER = """
+COUNT_ROWS = """
 SELECT COUNT(*) AS total
-FROM user_transactions
-WHERE user_id = $1;
+FROM memory_transactions;
 """
