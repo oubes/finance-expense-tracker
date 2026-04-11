@@ -1,44 +1,60 @@
-# ---- Analytics Queries ----
+# ---- Analytics Queries (Behavioral Signals) ----
 
-# ---- Monthly Spend ----
-MONTHLY_SPENDING = """
-SELECT 
-    DATE_TRUNC('month', created_at) AS month,
-    SUM(amount) AS total_spent
-FROM user_transactions
+
+# ---- USER ACTIVITY FREQUENCY ----
+GET_USER_ACTIVITY = """
+SELECT
+    user_id,
+    COUNT(*) AS total_events,
+    MAX(created_at) AS last_event
+FROM memory_transactions
 WHERE user_id = $1
-  AND transaction_type = 'expense'
-GROUP BY month
-ORDER BY month DESC;
+GROUP BY user_id;
 """
 
-# ---- Category Breakdown ----
-CATEGORY_BREAKDOWN = """
-SELECT 
-    category,
-    SUM(amount) AS total
-FROM user_transactions
+
+# ---- DOMAIN DISTRIBUTION ----
+GET_DOMAIN_DISTRIBUTION = """
+SELECT
+    domain,
+    COUNT(*) AS count
+FROM memory_transactions
 WHERE user_id = $1
-  AND transaction_type = 'expense'
-GROUP BY category
-ORDER BY total DESC;
+GROUP BY domain;
 """
 
-# ---- Income vs Expense ----
-INCOME_VS_EXPENSE = """
-SELECT 
-    transaction_type,
-    SUM(amount) AS total
-FROM user_transactions
+
+# ---- TAG SIGNALS ----
+GET_TAG_SIGNALS = """
+SELECT
+    tag,
+    COUNT(*) AS frequency,
+    AVG(confidence) AS avg_confidence
+FROM user_tags
 WHERE user_id = $1
-GROUP BY transaction_type;
+GROUP BY tag;
 """
 
-# ---- Average Spend ----
-AVERAGE_SPEND = """
-SELECT 
-    AVG(amount) AS avg_spend
-FROM user_transactions
+
+# ---- CONVERSATION INTENSITY ----
+GET_CONVERSATION_INTENSITY = """
+SELECT
+    COUNT(*) AS messages,
+    DATE(created_at) AS day
+FROM conversations
 WHERE user_id = $1
-  AND transaction_type = 'expense';
+GROUP BY DATE(created_at)
+ORDER BY day DESC;
+"""
+
+
+# ---- MEMORY GROWTH RATE ----
+GET_MEMORY_GROWTH = """
+SELECT
+    DATE(created_at) AS day,
+    COUNT(*) AS writes
+FROM memory_transactions
+WHERE user_id = $1
+GROUP BY DATE(created_at)
+ORDER BY day DESC;
 """

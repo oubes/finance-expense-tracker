@@ -6,43 +6,71 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# ---- Analytics Ops ----
+# ---- Analytics Ops (Behavioral Signals) ----
 class AnalyticsOps:
 
-    # ---- Constructor ----
     def __init__(self, db_client, queries):
         self.db = db_client
-        self.q = queries
+        self.queries = queries
 
-    # ---- MONTHLY SPENDING ----
-    async def monthly_spending(self, user_id: str) -> list[dict] | None:
+    # ---- INIT ----
+    async def init(self) -> bool:
+        """
+        No table creation required (read-only analytical layer).
+        """
+        return True
+
+    # ---- USER ACTIVITY ----
+    async def get_user_activity(self, user_id: str):
         try:
-            return await self.db.execute(self.q.MONTHLY_SPENDING, (user_id,))
+            return await self.db.execute_one(
+                self.queries.GET_USER_ACTIVITY,
+                (user_id,)
+            )
         except Exception as e:
-            logger.exception(f"[AnalyticsOps] monthly_spending failed: {e}")
+            logger.exception(f"[AnalyticsOps] activity failed: {e}")
             return None
 
-    # ---- CATEGORY BREAKDOWN ----
-    async def category_breakdown(self, user_id: str) -> list[dict] | None:
+    # ---- DOMAIN DISTRIBUTION ----
+    async def get_domain_distribution(self, user_id: str):
         try:
-            return await self.db.execute(self.q.CATEGORY_BREAKDOWN, (user_id,))
+            return await self.db.execute(
+                self.queries.GET_DOMAIN_DISTRIBUTION,
+                (user_id,)
+            )
         except Exception as e:
-            logger.exception(f"[AnalyticsOps] category_breakdown failed: {e}")
-            return None
+            logger.exception(f"[AnalyticsOps] domain dist failed: {e}")
+            return []
 
-    # ---- INCOME VS EXPENSE ----
-    async def income_vs_expense(self, user_id: str) -> list[dict] | None:
+    # ---- TAG SIGNALS ----
+    async def get_tag_signals(self, user_id: str):
         try:
-            return await self.db.execute(self.q.INCOME_VS_EXPENSE, (user_id,))
+            return await self.db.execute(
+                self.queries.GET_TAG_SIGNALS,
+                (user_id,)
+            )
         except Exception as e:
-            logger.exception(f"[AnalyticsOps] income_vs_expense failed: {e}")
-            return None
+            logger.exception(f"[AnalyticsOps] tag signals failed: {e}")
+            return []
 
-    # ---- AVERAGE SPEND ----
-    async def average_spend(self, user_id: str) -> float | None:
+    # ---- CONVERSATION INTENSITY ----
+    async def get_conversation_intensity(self, user_id: str):
         try:
-            row = await self.db.execute_one(self.q.AVERAGE_SPEND, (user_id,))
-            return row["avg_spend"] if row else None
+            return await self.db.execute(
+                self.queries.GET_CONVERSATION_INTENSITY,
+                (user_id,)
+            )
         except Exception as e:
-            logger.exception(f"[AnalyticsOps] average_spend failed: {e}")
-            return None
+            logger.exception(f"[AnalyticsOps] intensity failed: {e}")
+            return []
+
+    # ---- MEMORY GROWTH ----
+    async def get_memory_growth(self, user_id: str):
+        try:
+            return await self.db.execute(
+                self.queries.GET_MEMORY_GROWTH,
+                (user_id,)
+            )
+        except Exception as e:
+            logger.exception(f"[AnalyticsOps] growth failed: {e}")
+            return []
