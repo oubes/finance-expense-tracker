@@ -19,9 +19,12 @@ from src.services.db_services.queries.memory.short_term import session_queries, 
 from src.services.db_services.operations.memory.long_term.user_facts_ops import UserFactsOps
 from src.services.db_services.operations.memory.long_term.analytics_ops import AnalyticsOps
 from src.services.db_services.operations.memory.long_term.transactions_ops import TransactionsOps
+from src.services.db_services.operations.memory.long_term.tags_ops import TagsOps
+from src.services.db_services.operations.memory.long_term.vector_ops import VectorOps
 from src.services.db_services.operations.memory.short_term.session_state_ops import SessionOps
 from src.services.db_services.operations.memory.short_term.conversation_ops import ConversationOps
 from src.services.db_services.operations.memory.short_term.working_memory_ops import WorkingOps
+from src.services.db_services.operations.memory.short_term.stm_buffer_ops import STMBufferOps
 
 # ---- Logger ----
 logger = logging.getLogger(__name__)
