@@ -42,14 +42,3 @@ vector_db:
   type: "postgresql"
   name: "finance_db"
   table: "documents_embeddings"
-
-# Rate Limiting
-rate_limit:
-  requests: 100
-  window_seconds: 60
-
-# Observability
-observability:
-  metrics_enabled: true
-  tracing_enabled: true
-  otel_exporter_endpoint: "http://localhost:4317"
