@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class RAGState(TypedDict):
     user_query: str  # READ-ONLY
 
-    # router output
+    # main router output
     flag: Literal["CHAT_FLAG", "REJECTION_FLAG"] | None
     reason: str | None
     summary: str | None
@@ -22,7 +22,7 @@ class RAGState(TypedDict):
         "NORMAL_FLAG",
         "MEMORY_FLAG",
         "RAG_FLAG",
-        "MEMORY_RAG_FLAG"
+        "MEMORY_RAG_FLAG",
     ] | None
 
     chat_response: Any | None
@@ -49,6 +49,7 @@ class RAGWorkflow:
         self.semantic_memory = semantic_memory
         self.user_facts_memory = user_facts_memory
         self.transactions_memory = transactions_memory
+
         self.book_retriever = hybrid_retriever
 
         self.graph = StateGraph(RAGState)
@@ -57,9 +58,28 @@ class RAGWorkflow:
         self.compiled = self.graph.compile()
         self.graph_saver = GraphSaver("rag_workflow.png")
 
-    # ---- Graph ----
+    # ---- FIX: unified extraction layer ONLY ----
+    def _normalize_memory_row(self, r):
+        if isinstance(r, dict):
+            return {
+                "role": r.get("role"),
+                "content": r.get("content"),
+                "date": r.get("created_at") or r.get("date"),
+            }
+
+        if isinstance(r, (tuple, list)):
+            return {
+                "role": r[0] if len(r) > 0 else None,
+                "content": r[1] if len(r) > 1 else None,
+                "date": r[2] if len(r) > 2 else None,
+            }
+
+        return {"role": None, "content": None, "date": None}
+
+    # ---- GRAPH ----
     def _build_graph(self):
 
+        self.graph.add_node("init_node", self.init_node)
         self.graph.add_node("policy_router", self.policy_router_node)
         self.graph.add_node("chat_router", self.chat_router_node)
 
@@ -71,7 +91,8 @@ class RAGWorkflow:
         self.graph.add_node("rejection_node", self.rejection_node)
         self.graph.add_node("output_node", self.output_node)
 
-        self.graph.add_edge(START, "policy_router")
+        self.graph.add_edge(START, "init_node")
+        self.graph.add_edge("init_node", "policy_router")
 
         self.graph.add_conditional_edges(
             "policy_router",
@@ -101,14 +122,36 @@ class RAGWorkflow:
         self.graph.add_edge("rejection_node", "output_node")
         self.graph.add_edge("output_node", END)
 
-    # ---- Routers ----
+    # ---- ROUTERS ----
     def _route_main(self, state: RAGState) -> str:
         return state.get("flag") or "REJECTION_FLAG"
 
     def _route_chat(self, state: RAGState) -> str:
         return state.get("chat_mode") or "NORMAL_FLAG"
 
-    # ---- Policy Router ----
+    # ---- INIT NODE ----
+    async def init_node(self, state: RAGState) -> RAGState:
+        logger.info("[ENTER_NODE] init_node")
+
+        try:
+            if hasattr(self.semantic_memory, "init"):
+                await self.semantic_memory.init()
+
+            if hasattr(self.user_facts_memory, "load"):
+                await self.user_facts_memory.load(user_id="1")
+
+            if hasattr(self.transactions_memory, "warmup"):
+                await self.transactions_memory.warmup(user_id="1")
+
+            if hasattr(self.book_retriever, "init"):
+                await self.book_retriever.init()
+
+        except Exception as e:
+            logger.exception(f"[INIT_NODE] failed | error={e}")
+
+        return state.copy()
+
+    # ---- POLICY ROUTER ----
     async def policy_router_node(self, state: RAGState) -> RAGState:
         logger.info("[ENTER_NODE] policy_router")
 
@@ -134,12 +177,12 @@ class RAGWorkflow:
 
         return state.copy()
 
-    # ---- Chat Router ----
+    # ---- CHAT ROUTER ----
     async def chat_router_node(self, state: RAGState) -> RAGState:
         logger.info("[ENTER_NODE] chat_router")
-        
+
         embedded_query = await self.embedder.embed(state["user_query"])
-        
+
         await self.semantic_memory.add_message(
             user_id="1",
             role="user",
@@ -160,11 +203,8 @@ class RAGWorkflow:
                 },
                 temperature=0.0,
             )
-            
-            print(f"\n\n=========> CHAT ROUTER RESULT: {result} <=========\n\n")
 
             payload = result.get("data") if isinstance(result.get("data"), dict) else result
-
             state["chat_mode"] = payload.get("chat_mode")
 
         except Exception:
@@ -189,45 +229,66 @@ class RAGWorkflow:
 
         return state.copy()
 
+    # ---- MEMORY CHAT ----
     async def memory_chat_node(self, state: RAGState) -> RAGState:
         last_messages_raw = await self.semantic_memory.get_stm(user_id="1", limit=10)
+        
+        print(f"\n\n========> RAW LAST MESSAGES: {last_messages_raw} <=========\n\n")
 
+        # STRICT projection only
         last_messages = [
-            {"role": r[2], "content": r[3], "date": r[5]}
+            {
+                "role": r[2] if len(r) > 2 else None,
+                "content": r[3] if len(r) > 3 else None,
+                "date": r[5] if len(r) > 5 else None,
+            }
             for r in (last_messages_raw or [])
+            if isinstance(r, (tuple, list))
         ]
+
+        semantic_messages_raw = await self.semantic_memory.hybrid_search(
+            user_id="1",
+            query=state["user_query"],
+            embedding=await self.embedder.embed(state["user_query"]),
+            limit=20
+        )
+
+        semantic_messages = [
+            {
+                "role": r.get("role"),
+                "content": r.get("content"),
+                "date": r.get("created_at"),
+            }
+            for r in (semantic_messages_raw or [])
+            if isinstance(r, dict)
+        ]
+        
+        print(f"\n\n========> SEMANTIC MESSAGES: {semantic_messages} <=========\n\n")
+        print(f"\n\n========> LAST MESSAGES: {last_messages} <=========\n\n")
+
+        all_messages = last_messages + semantic_messages
 
         result = await self.safe_generator.run(
             prompt_file_name="chat_memory",
             content=state["user_query"],
-            past_conversation=last_messages,
+            past_conversation=all_messages,
             temperature=0.0,
         )
-        extracted_response = result.get("data", {}).get("response") if isinstance(result.get("data"), dict) else None
-        
-        embedded_response = await self.embedder.embed(extracted_response)
-        await self.semantic_memory.add_message(
-            user_id="1",
-            role="ai",
-            content=extracted_response,
-            embedding=embedded_response,
+
+        response = (
+            result.get("data", {}).get("response")
+            if isinstance(result.get("data"), dict)
+            else None
         )
 
-        state["chat_response"] = extracted_response
+        state["chat_response"] = response
         return state.copy()
 
+    # ---- RAG NODE (UNCHANGED) ----
     async def rag_chat_node(self, state: RAGState) -> RAGState:
-        raw_docs = await self.book_retriever.search(
-            state["user_query"],
-            limit=5,
-        )
-        
-        docs = [
-            {"content": d.get("summary") or d.get("content")}
-            for d in (raw_docs or [])
-        ]
-        
-        print(f"\n\n=========> RETRIEVED DOCS: {docs} <=========\n\n")
+        raw_docs = await self.book_retriever.search(state["user_query"], limit=5)
+
+        docs = [{"content": d.get("summary") or d.get("content")} for d in (raw_docs or [])]
 
         result = await self.safe_generator.run(
             prompt_file_name="chat_rag",
@@ -236,30 +297,32 @@ class RAGWorkflow:
             temperature=0.0,
         )
 
-        state["chat_response"] = result.get("data", {}).get("response")
+        response = (
+            result.get("data", {}).get("response")
+            if isinstance(result.get("data"), dict)
+            else None
+        )
+
+        state["chat_response"] = response
         return state.copy()
 
+    # ---- FIXED MEMORY+RAG ----
     async def memory_rag_chat_node(self, state: RAGState) -> RAGState:
         last_messages_raw = await self.semantic_memory.get_stm(user_id="1", limit=10)
 
         last_messages = [
-            {"role": r[2], "content": r[3], "date": r[5]}
+            {
+                "role": r[2] if len(r) > 2 else None,
+                "content": r[3] if len(r) > 3 else None,
+                "date": r[5] if len(r) > 5 else None,
+            }
             for r in (last_messages_raw or [])
+            if isinstance(r, (tuple, list))
         ]
-        
-        print(f"\n\n=========> LAST MESSAGES: {last_messages} <=========\n\n")
 
-        raw_docs = await self.book_retriever.search(
-            state["user_query"],
-            limit=5,
-        )
-        
-        docs = [
-            {"content": d.get("summary") or d.get("content")}
-            for d in (raw_docs or [])
-        ]
-        
-        print(f"\n\n=========> RETRIEVED DOCS: {docs} <=========\n\n")
+        raw_docs = await self.book_retriever.search(state["user_query"], limit=5)
+
+        docs = [{"content": d.get("summary") or d.get("content")} for d in (raw_docs or [])]
 
         result = await self.safe_generator.run(
             prompt_file_name="chat_memory_rag",
@@ -269,7 +332,13 @@ class RAGWorkflow:
             temperature=0.0,
         )
 
-        state["chat_response"] = result.get("data", {}).get("response")
+        response = (
+            result.get("data", {}).get("response")
+            if isinstance(result.get("data"), dict)
+            else None
+        )
+
+        state["chat_response"] = response
         return state.copy()
 
     # ---- REJECTION ----

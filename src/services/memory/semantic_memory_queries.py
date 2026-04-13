@@ -55,20 +55,54 @@ ORDER BY created_at DESC
 LIMIT %s;
 """
 
-
-# ---- VECTOR SEARCH ----
-VECTOR_SEARCH = """
-SELECT *,
-       embedding <-> %s AS distance
-FROM semantic_memory
-WHERE user_id = %s
-ORDER BY distance ASC
-LIMIT 10;
-"""
-
-
 # ---- COUNT ----
 COUNT_ROWS = """
 SELECT COUNT(*) AS total
 FROM semantic_memory;
+"""
+
+# ---- BM25 SEARCH ----
+BM25_SEARCH = """
+WITH docs AS (
+    SELECT
+        id,
+        user_id,
+        role,
+        content,
+        created_at,
+        setweight(to_tsvector('simple', coalesce(content,'')), 'A') AS tsv
+    FROM semantic_memory
+    WHERE user_id = %s
+)
+SELECT
+    id,
+    user_id,
+    role,
+    content,
+    created_at,
+    ts_rank_cd(
+        tsv,
+        to_tsquery('simple', replace(%s, ' ', ' | '))
+    ) AS bm25_score
+FROM docs
+WHERE tsv @@ to_tsquery('simple', replace(%s, ' ', ' | '))
+ORDER BY bm25_score DESC
+LIMIT %s;
+"""
+
+
+# ---- VECTOR SEARCH ----
+VECTOR_SEARCH = """
+SELECT
+    id,
+    user_id,
+    role,
+    content,
+    created_at,
+    1 - (embedding <=> %s::vector) AS vector_score
+FROM semantic_memory
+WHERE user_id = %s
+  AND embedding IS NOT NULL
+ORDER BY embedding <=> %s::vector
+LIMIT %s;
 """
