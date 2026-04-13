@@ -63,7 +63,8 @@ class SemanticMemoryOps:
         try:
             return await self.db.execute(
                 self.q.GET_STM,
-                (user_id, limit)
+                (user_id, limit),
+                fetch=True
             )
         except Exception as e:
             logger.exception(f"[MemoryOps] get_stm failed: {e}")
