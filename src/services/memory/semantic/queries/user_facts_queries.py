@@ -1,4 +1,5 @@
 # ---- User Facts Queries ----
+
 # ---- TABLE CREATION ----
 CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS user_facts (
@@ -13,9 +14,6 @@ CREATE TABLE IF NOT EXISTS user_facts (
     fixed_expenses NUMERIC,
     disposable_income NUMERIC,
 
-    confidence REAL,
-    raw_json JSONB,
-
     created_at TIMESTAMP DEFAULT NOW()
 );
 """
@@ -28,7 +26,7 @@ ON user_facts(user_id, created_at DESC);
 """
 
 
-# ---- INSERT (NEW VERSION) ----
+# ---- INSERT (FIXED) ----
 INSERT_FACTS = """
 INSERT INTO user_facts (
     user_id,
@@ -37,11 +35,9 @@ INSERT INTO user_facts (
     rent,
     food_expense,
     fixed_expenses,
-    disposable_income,
-    confidence,
-    raw_json
+    disposable_income
 )
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9);
+VALUES (%s, %s, %s, %s, %s, %s, %s);
 """
 
 
@@ -49,7 +45,7 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9);
 GET_LATEST_BY_USER_ID = """
 SELECT *
 FROM user_facts
-WHERE user_id = $1
+WHERE user_id = %s
 ORDER BY created_at DESC
 LIMIT 1;
 """
@@ -59,7 +55,7 @@ LIMIT 1;
 GET_HISTORY_BY_USER_ID = """
 SELECT *
 FROM user_facts
-WHERE user_id = $1
+WHERE user_id = %s
 ORDER BY created_at DESC;
 """
 
@@ -75,5 +71,5 @@ FROM user_facts;
 COUNT_BY_USER = """
 SELECT COUNT(*) AS total
 FROM user_facts
-WHERE user_id = $1;
+WHERE user_id = %s;
 """
