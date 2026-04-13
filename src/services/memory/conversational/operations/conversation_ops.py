@@ -1,7 +1,6 @@
 # ---- Imports ----
 import logging
 
-
 # ---- Logger ----
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ class ConversationOps:
             logger.exception(f"[ConversationOps] add failed: {e}")
             return False
 
-    # ---- GET HISTORY ----
+    # ---- GET HISTORY (SESSION) ----
     async def get_history(self, session_id: str):
         return await self.db.execute(
             self.queries.GET_HISTORY,
@@ -51,6 +50,17 @@ class ConversationOps:
             self.queries.GET_USER_RECENT,
             (user_id,)
         )
+
+    # ---- GET STM (LAST N MESSAGES - MEMORY LAYER) ----
+    async def get_last_messages(self, user_id: str, limit: int = 10):
+        try:
+            return await self.db.execute(
+                self.queries.GET_STM,
+                (user_id, limit)
+            )
+        except Exception as e:
+            logger.exception(f"[ConversationOps] get_last_messages failed: {e}")
+            return []
 
     # ---- DELETE SESSION ----
     async def delete_session(self, session_id: str) -> bool:
