@@ -220,12 +220,21 @@ class RAGWorkflow:
             content=state["user_query"],
             temperature=0.0,
         )
-
-        state["chat_response"] = (
+        
+        response = (
             result.get("data", {}).get("response")
             if isinstance(result.get("data"), dict)
             else None
         )
+        
+        await self.semantic_memory.add_message(
+            user_id="1",
+            role="ai",
+            content=response,
+            embedding=await self.embedder.embed(response),
+        )
+
+        state["chat_response"] = response
 
         return state.copy()
 
@@ -280,6 +289,14 @@ class RAGWorkflow:
             if isinstance(result.get("data"), dict)
             else None
         )
+        
+        await self.semantic_memory.add_message(
+            user_id="1",
+            role="ai",
+            content=response,
+            embedding=await self.embedder.embed(response),
+        )
+
 
         state["chat_response"] = response
         return state.copy()
@@ -336,6 +353,13 @@ class RAGWorkflow:
             result.get("data", {}).get("response")
             if isinstance(result.get("data"), dict)
             else None
+        )
+        
+        await self.semantic_memory.add_message(
+            user_id="1",
+            role="ai",
+            content=response,
+            embedding=await self.embedder.embed(response),
         )
 
         state["chat_response"] = response
