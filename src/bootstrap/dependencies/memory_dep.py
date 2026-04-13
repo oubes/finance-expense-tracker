@@ -14,28 +14,23 @@ from src.bootstrap.dependencies.prompting_dep import get_safe_generator
 from src.bootstrap.dependencies.embeddings_dep import get_embedding
 
 # ---- Operations ----
-from src.services.memory.analytical.operations.analytics_ops import AnalyticsOps
-from src.services.memory.analytical.operations.transactions_ops import TransactionsOps
+from src.services.memory.analytics_ops import AnalyticsOps
+from src.services.memory.transactions_ops import TransactionsOps
 
-from src.services.memory.semantic.operations.semantic_memory_ops import SemanticMemoryOps
+from src.services.memory.semantic_memory_ops import SemanticMemoryOps
 
-from src.services.memory.semantic.operations.vector_ops import VectorOps
-from src.services.memory.semantic.operations.user_facts_ops import UserFactsOps
+from src.services.memory.user_facts_ops import UserFactsOps
 
 # ---- Queries ----
 
-from src.services.memory.semantic.queries import semantic_memory_queries
-from src.services.memory.analytical.queries import (
+from src.services.memory import semantic_memory_queries
+from src.services.memory import (
     analytics_queries,
     transactions_queries,
 )
 
-from src.services.memory.conversational.queries import conversation_queries
+from src.services.memory import user_facts_queries
 
-from src.services.memory.semantic.queries import (
-    vector_queries,
-    user_facts_queries,
-)
 
 # ---- Pipelines ----
 from src.pipelines.v1.conv_memory_pipeline import MemorySystem
@@ -70,12 +65,6 @@ def get_transactions_service(db=Depends(get_db_client_dep)) -> TransactionsOps:
     return TransactionsOps(
         db_client=db,
         queries=transactions_queries,
-    )
-
-def get_vector_service(db=Depends(get_db_client_dep)) -> VectorOps:
-    return VectorOps(
-        db_client=db,
-        queries=vector_queries,
     )
 
 def get_user_facts_service(db=Depends(get_db_client_dep)) -> UserFactsOps:
