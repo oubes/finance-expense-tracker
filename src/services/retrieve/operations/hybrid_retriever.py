@@ -22,7 +22,7 @@ class HybridRetriever(RetrieverContract):
         self.reranker = reranker
 
     # ---- Search ----
-    async def search(self, input_query: str, limit: int = 5) -> list[dict[str, Any]]:
+    async def search(self, input_query: str, limit: int = 5, weights: dict[str, float]={"bm25":0.15, "vector":0.8, "stored":0.05}) -> list[dict[str, Any]]:
         logger.info("stage=hybrid_retrieval_start query_length=%s limit=%s", len(input_query or ""), limit)
 
         if not input_query or not isinstance(input_query, str):
@@ -46,9 +46,9 @@ class HybridRetriever(RetrieverContract):
         if self.reranker:
             results = self.reranker.rerank(
                 results,
-                bm25_weight=0.15,
-                vector_weight=0.8,
-                stored_weight=0.05,
+                bm25_weight=weights.get("bm25", 0.15),
+                vector_weight=weights.get("vector", 0.8),
+                stored_weight=weights.get("stored", 0.05),
             )
 
         else:

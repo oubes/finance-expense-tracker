@@ -1,5 +1,7 @@
 # ---- Imports ----
 import logging
+import time
+import asyncio
 from typing import Any
 
 # ---- Logger ----
@@ -8,25 +10,40 @@ logger = logging.getLogger(__name__)
 
 # ---- Safe Generator ----
 class SafeGenerator:
-    # ---- Constructor ----
+
     def __init__(
         self,
         msg_builder,
         llm_generator,
         extractor,
         validator,
+        min_interval_sec: float = 1.0,  # NEW
     ):
         self.msg_builder = msg_builder
         self.llm_generator = llm_generator
         self.extractor = extractor
         self.validator = validator
 
+        # ---- RATE LIMIT STATE ----
+        self._min_interval_sec = min_interval_sec
+        self._last_call_ts = 0.0
+        self._lock = asyncio.Lock()
+
+    # ---- RATE LIMIT GUARD ----
+    async def _rate_limit(self):
+        async with self._lock:
+            now = time.time()
+            delta = now - self._last_call_ts
+
+            if delta < self._min_interval_sec:
+                wait_time = self._min_interval_sec - delta
+                logger.info(f"[rate_limit] sleeping {wait_time:.3f}s")
+                await asyncio.sleep(wait_time)
+
+            self._last_call_ts = time.time()
+
     # ---- Build Messages ----
-    async def build_messages(
-        self,
-        prompt_file_name: str,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
+    async def build_messages(self, prompt_file_name: str, **kwargs: Any) -> dict[str, Any]:
         try:
             logger.info(f"[build_messages] prompt={prompt_file_name}")
 
@@ -38,7 +55,7 @@ class SafeGenerator:
             if not result.get("state"):
                 logger.warning("[build_messages] failed")
                 return {"state": False, "data": None}
-
+            print(f"\n\n=========> BUILT MESSAGES: {result.get('data')} <=========\n\n")
             return result
 
         except Exception as e:
@@ -46,14 +63,12 @@ class SafeGenerator:
             return {"state": False, "data": None}
 
     # ---- Generate LLM ----
-    async def generate_llm(
-        self,
-        messages: list[dict],
-        temperature: float,
-        max_tokens: int,
-    ) -> dict[str, Any]:
+    async def generate_llm(self, messages: list[dict], temperature: float, max_tokens: int) -> dict[str, Any]:
         try:
             logger.info("[generate_llm] start")
+
+            # ---- RATE LIMIT APPLIED HERE ----
+            await self._rate_limit()
 
             raw = await self.llm_generator.generate(
                 messages=messages,
@@ -68,10 +83,7 @@ class SafeGenerator:
             return {"state": False, "data": None}
 
     # ---- Extract JSON ----
-    async def extract_json(
-        self,
-        raw: str,
-    ) -> dict[str, Any]:
+    async def extract_json(self, raw: str) -> dict[str, Any]:
         try:
             logger.info("[extract_json] start")
 
