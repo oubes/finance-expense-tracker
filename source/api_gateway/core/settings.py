@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # ---- External Services URLs ----
-    RAG_SERVICE_URL: str = "http://rag:8001"
+    CHAT_SERVICE_URL: str = "http://rag:8001"
     INGESTION_SERVICE_URL: str = "http://ingestion:8002"
 
     # ---- HTTP Config ----

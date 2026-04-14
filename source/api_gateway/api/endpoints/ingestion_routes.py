@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from source.api_gateway.clients.ingestion_client import IngestionClient
+from source.api_gateway.clients.ingestion import IngestionClient
 from source.api_gateway.core.dependencies import get_ingestion_client
 
 router = APIRouter()
