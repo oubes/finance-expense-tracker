@@ -1,9 +1,13 @@
-from pydantic import BaseModel, ConfigDict
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = ConfigDict(frozen=True)
+    model_config = SettingsConfigDict(
+        frozen=True
+    )
 
     APP_NAME: str = "UI Service"
     VERSION: str = "0.1.0"
+
+
+settings = Settings()
