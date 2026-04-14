@@ -6,7 +6,7 @@ import uuid
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from source.api_gateway.core.exceptions import BaseAPIException
+from source.api_gateway.core.errors.exceptions import BaseAPIException
 
 logger = logging.getLogger(__name__)
 

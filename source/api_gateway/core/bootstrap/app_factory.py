@@ -3,12 +3,12 @@
 import logging
 from fastapi import FastAPI
 
-from source.api_gateway.core.app.lifespan import lifespan
-from source.api_gateway.core.app.middleware import register_middleware
-from source.api_gateway.core.app.setup_routes import register_routes
+from source.api_gateway.core.bootstrap.lifespan import lifespan
+from source.api_gateway.core.middleware import register_middleware
+from source.api_gateway.api.router_registry import register_routes
 
-from core.exceptions import BaseAPIException
-from core.error_handlers import base_exception_handler, generic_exception_handler
+from source.api_gateway.core.errors.exceptions import BaseAPIException
+from source.api_gateway.core.errors.error_handlers import base_exception_handler, generic_exception_handler
 
 
 # ---------- logger ----------

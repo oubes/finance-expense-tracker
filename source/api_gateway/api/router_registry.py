@@ -1,5 +1,5 @@
 # ---- Imports ----
-from source.api_gateway.api.endpoints.ingestion_routes import router as ingestion_router
+from source.api_gateway.api.routes.ingestion_routes import router as ingestion_router
 
 # ---- Routes Registration ----
 def register_routes(app):
