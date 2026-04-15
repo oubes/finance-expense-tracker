@@ -3,6 +3,12 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 
+from source.api_gateway.core.observability.context import (
+    get_request_id,
+    get_trace_id,
+    get_service_name,
+)
+
 
 # ---- ANSI Colors ----
 class Colors:
@@ -24,7 +30,7 @@ LEVEL_PREFIX = {
 }
 
 
-# ---- Keys to exclude from extra (IMPORTANT FIX) ----
+# ---- Keys to exclude from extra ----
 SKIP_KEYS = {
     "name", "msg", "args",
     "levelname", "levelno",
@@ -41,7 +47,16 @@ SKIP_KEYS = {
 }
 
 
-# ---- Custom Formatter ----
+# ---- Context Filter (Observability Injection) ----
+class ContextFilter(logging.Filter):
+    def filter(self, record):
+        record.request_id = get_request_id()
+        record.trace_id = get_trace_id()
+        record.service_name = get_service_name()
+        return True
+
+
+# ---- Custom Formatter (extra + readability) ----
 class ExtraFormatter(logging.Formatter):
     MAX_VALUE_LENGTH = 120
     SEPARATOR = f"{Colors.GREY}{'-' * 120}{Colors.RESET}"
@@ -82,14 +97,9 @@ class ExtraFormatter(logging.Formatter):
         return f"{line}\n{self.SEPARATOR}"
 
 
-# ---- Fix: unify uvicorn + fastapi logging ----
+# ---- Uvicorn / FastAPI logging isolation ----
 def _attach_uvicorn_to_root():
-    for name in [
-        "uvicorn",
-        "uvicorn.error",
-        "uvicorn.access",
-        "fastapi",
-    ]:
+    for name in ["uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"]:
         lg = logging.getLogger(name)
         lg.handlers.clear()
         lg.propagate = False
@@ -99,15 +109,20 @@ def _attach_uvicorn_to_root():
 def setup_logging(log_level=logging.INFO):
     logger = logging.getLogger()
 
-    # prevent duplicate handlers
     logger.handlers.clear()
     logger.setLevel(log_level)
 
-    # ---- Console Handler ----
+    # ---- Console ----
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
 
-    # ---- File Handler ----
+    console_formatter = ExtraFormatter(
+        "%(asctime)s | %(name)s | svc=%(service_name)s | req=%(request_id)s | trace=%(trace_id)s | %(message)s"
+    )
+    console_handler.setFormatter(console_formatter)
+    console_handler.addFilter(ContextFilter())
+
+    # ---- File ----
     file_handler = RotatingFileHandler(
         "app.log",
         maxBytes=100 * 1024 * 1024,
@@ -115,21 +130,14 @@ def setup_logging(log_level=logging.INFO):
     )
     file_handler.setLevel(log_level)
 
-    # ---- Formatters ----
-    console_formatter = ExtraFormatter(
-        "%(asctime)s | %(name)s | %(message)s"
-    )
-
     file_formatter = logging.Formatter(
         "%(asctime)s | %(name)s | %(levelname)s | %(message)s"
     )
-
-    console_handler.setFormatter(console_formatter)
     file_handler.setFormatter(file_formatter)
+    file_handler.addFilter(ContextFilter())
 
     # ---- Attach ----
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
 
-    # ---- IMPORTANT FIX ----
     _attach_uvicorn_to_root()
