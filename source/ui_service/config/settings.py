@@ -8,6 +8,6 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "UI Service"
     VERSION: str = "0.1.0"
-
+    API_GATEWAY_URL: str = "http://localhost:8000"
 
 settings = Settings()
