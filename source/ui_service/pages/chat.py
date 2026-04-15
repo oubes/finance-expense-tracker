@@ -1,19 +1,15 @@
 import streamlit as st
-from components.chat_box import render_chat_box
-from state.session import init_state, add_message, get_messages
 
-def render_chat():
-    st.title("Chat UI")
+from application.chat_service import ChatService
 
-    init_state()
 
-    messages = get_messages()
+def render(chat_service: ChatService) -> None:
+    st.title("Chat")
 
-    render_chat_box(messages)
+    msg = st.text_input("Message")
 
-    user_input = st.chat_input("Type message...")
+    if st.button("Send"):
+        chat_service.send_message(msg)
 
-    if user_input:
-        add_message("user", user_input)
-        add_message("assistant", f"Echo: {user_input}")
-        st.rerun()
+    for m in st.session_state.get("messages", []):
+        st.write(f"{m['role']}: {m['content']}")
