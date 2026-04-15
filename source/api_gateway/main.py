@@ -1,6 +1,6 @@
 # ---- Imports ----
 from source.api_gateway.core.bootstrap.app_factory import create_app
-from source.api_gateway.core.observability.logging import setup_logging
+from source.api_gateway.core.observability import setup_logging
 
 # ---- Setup Logging ----
 setup_logging()
