@@ -1,3 +1,4 @@
+# ---- Imports ----
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import logging
@@ -12,13 +13,15 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
     logger.info("[LIFESPAN] startup initiated")
+
     # ---- Startup ----
-    
     settings = Settings()
-    
+
     chat_client = ChatClient(settings=settings)
     await chat_client.start()
+
     ingestion_client = IngestionClient(settings=settings)
     await ingestion_client.start()
 

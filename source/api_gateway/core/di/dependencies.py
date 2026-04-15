@@ -4,11 +4,10 @@ from functools import lru_cache
 from fastapi import Depends, Request
 
 from source.api_gateway.core.config.settings import Settings
-from source.api_gateway.adapters.chat_adapter import ChatClient
-from source.api_gateway.adapters.ingestion_adapter import IngestionClient
-from source.api_gateway.application.chat_service import ChatService
-from source.api_gateway.application.ingestion_service import IngestionService
+from source.api_gateway.adapters import ChatClient, IngestionClient
+from source.api_gateway.application import ChatService, IngestionService
 
+# ---- Logger ----
 logger = logging.getLogger(__name__)
 
 
