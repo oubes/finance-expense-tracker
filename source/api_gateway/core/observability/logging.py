@@ -44,15 +44,18 @@ SKIP_KEYS = {
     "processName", "process",
     "asctime",
     "message",
+    "request_id",
+    "trace_id",
+    "service_name",
 }
 
 
 # ---- Context Filter (Observability Injection) ----
 class ContextFilter(logging.Filter):
     def filter(self, record):
-        record.request_id = get_request_id()
-        record.trace_id = get_trace_id()
-        record.service_name = get_service_name()
+        record.request_id = get_request_id() or "-"
+        record.trace_id = get_trace_id() or "-"
+        record.service_name = get_service_name() or "api_gateway"
         return True
 
 
@@ -69,7 +72,9 @@ class ExtraFormatter(logging.Formatter):
             ) + "}"
 
         if isinstance(v, (list, tuple)):
-            return "[" + ", ".join(map(str, v[:5])) + ("..." if len(v) > 5 else "") + "]"
+            return "[" + ", ".join(str(item) for item in v[:5]) + (
+                "..." if len(v) > 5 else ""
+            ) + "]"
 
         s = str(v).replace("\n", " ").replace("\r", " ")
 
@@ -84,7 +89,7 @@ class ExtraFormatter(logging.Formatter):
         extras = {
             k: self._flatten_value(v)
             for k, v in record.__dict__.items()
-            if k not in SKIP_KEYS
+            if k not in SKIP_KEYS and not k.startswith("_")
         }
 
         prefix = LEVEL_PREFIX.get(record.levelname, "⚪")

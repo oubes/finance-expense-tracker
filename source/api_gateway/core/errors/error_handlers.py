@@ -1,20 +1,22 @@
-# ---------- core/error_handlers.py ----------
-
 import logging
-import uuid
-
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from source.api_gateway.core.errors.exceptions import BaseAPIException
+from source.api_gateway.core.observability.context import get_request_id
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_request_id():
+    return get_request_id() or "unknown"
 
 
 # ---------- Base API Exception Handler ----------
 
 async def base_exception_handler(request: Request, exc: Exception):
-    request_id = str(uuid.uuid4())
+
+    request_id = _safe_request_id()
 
     if isinstance(exc, BaseAPIException):
         logger.warning(
@@ -64,7 +66,8 @@ async def base_exception_handler(request: Request, exc: Exception):
 # ---------- Generic Exception Handler ----------
 
 async def generic_exception_handler(request: Request, exc: Exception):
-    request_id = str(uuid.uuid4())
+
+    request_id = _safe_request_id()
 
     logger.exception(
         f"[{request_id}] unhandled error",

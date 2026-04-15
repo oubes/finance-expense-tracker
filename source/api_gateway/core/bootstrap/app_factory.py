@@ -8,7 +8,12 @@ from source.api_gateway.core.middleware import register_middleware
 from source.api_gateway.api.router_registry import register_routes
 
 from source.api_gateway.core.errors.exceptions import BaseAPIException
-from source.api_gateway.core.errors.error_handlers import base_exception_handler, generic_exception_handler
+from source.api_gateway.core.errors.error_handlers import (
+    base_exception_handler,
+    generic_exception_handler,
+)
+
+from source.api_gateway.core.observability.middleware import ObservabilityMiddleware
 
 
 # ---------- logger ----------
@@ -24,11 +29,17 @@ def create_app() -> FastAPI:
     try:
         app = FastAPI(lifespan=lifespan)
 
+        logger.info("[APP_FACTORY] registering observability middleware")
+        app.add_middleware(
+            ObservabilityMiddleware,
+            service_name="api_gateway",
+        )
+
         logger.info("[APP_FACTORY] registering exception handlers")
         app.add_exception_handler(BaseAPIException, base_exception_handler)
         app.add_exception_handler(Exception, generic_exception_handler)
 
-        logger.info("[APP_FACTORY] registering middleware")
+        logger.info("[APP_FACTORY] registering middleware stack")
         register_middleware(app)
 
         logger.info("[APP_FACTORY] registering routes")

@@ -1,78 +1,67 @@
-# ---- Imports ----
 import time
 import logging
 from fastapi import Request
 
-# ---- Logger Initialization ----
+from source.api_gateway.core.observability.context import (
+    set_request_context,
+    get_request_id,
+    get_trace_id,
+    generate_id,
+    reset_context,
+)
+
 logger = logging.getLogger(__name__)
 
 
-# ---- Middleware Registration ----
 def register_middleware(app):
-
     logger.info("[MIDDLEWARE] registering middleware stack")
-
-    try:
-        # register_rate_limit(app)
-        register_logging(app)
-        logger.info("[MIDDLEWARE] logging middleware registered SUCCESS")
-
-    except Exception:
-        logger.exception("[MIDDLEWARE] middleware registration FAILED")
-        raise
+    register_logging(app)
 
 
-# ---- Logging Middleware Registration ----
 def register_logging(app):
-
-    logger.info("[MIDDLEWARE] initializing HTTP logging middleware")
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
-        start_time = time.time()
-
-        # ---- Request Start Logging ----
-        log_start(request)
-
-        try:
-            response = await call_next(request)
-        except Exception as e:
-            # ---- Error Logging ----
-            log_error(request, start_time, e)
-            raise
-
-        # ---- Success Logging ----
-        log_success(request, response, start_time)
-
-        return response
+        return await _handle_request(request, call_next)
 
 
-# ---- Request Start Logger ----
-def log_start(request: Request):
-    logger.info("[HTTP] incoming request | %s %s", request.method, request.url)
+async def _handle_request(request: Request, call_next):
+    start_time = time.time()
 
+    request_id = request.headers.get("x-request-id") or generate_id()
+    trace_id = request.headers.get("x-trace-id") or generate_id()
 
-# ---- Request Success Logger ----
-def log_success(request: Request, response, start_time: float):
-    process_time = time.time() - start_time
+    set_request_context(
+        request_id=request_id,
+        trace_id=trace_id,
+        service_name="api_gateway",
+    )
+
+    request.state.request_id = request_id
+    request.state.trace_id = trace_id
 
     logger.info(
-        "[HTTP] response success | %s %s | status=%s | time=%.4fs",
+        "[HTTP] incoming request | %s %s | req=%s | trace=%s",
         request.method,
         request.url,
-        response.status_code,
-        process_time
+        get_request_id(),
+        get_trace_id(),
     )
 
+    try:
+        response = await call_next(request)
+        return response
 
-# ---- Request Error Logger ----
-def log_error(request: Request, start_time: float, error: Exception):
-    process_time = time.time() - start_time
+    except Exception as e:
+        logger.exception(
+            "[HTTP] request failed | %s %s | error=%s | req=%s | trace=%s",
+            request.method,
+            request.url,
+            str(e),
+            get_request_id(),
+            get_trace_id(),
+        )
+        raise
 
-    logger.exception(
-        "[HTTP] request failed | %s %s | time=%.4fs | error=%s",
-        request.method,
-        request.url,
-        process_time,
-        str(error)
-    )
+    finally:
+        reset_context()

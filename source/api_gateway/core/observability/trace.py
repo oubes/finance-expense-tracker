@@ -1,6 +1,9 @@
-# ---- Imports ----
 import time
+import logging
+
 from source.api_gateway.core.observability.context import get_trace_id
+
+logger = logging.getLogger(__name__)
 
 
 class Span:
@@ -15,10 +18,9 @@ class Span:
     def __exit__(self, exc_type, exc_val, exc_tb):
         duration_ms = (time.time() - self.start_time) * 1000
 
-        trace_id = get_trace_id()
-
-        print(
-            f"[TRACE] trace_id={trace_id} "
-            f"span={self.name} "
-            f"duration_ms={duration_ms:.2f}"
+        logger.info(
+            "[SPAN] name=%s trace_id=%s duration_ms=%.2f",
+            self.name,
+            get_trace_id(),
+            duration_ms,
         )

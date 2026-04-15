@@ -1,4 +1,3 @@
-# ---- Imports ----
 import uuid
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -6,7 +5,7 @@ from source.api_gateway.core.observability.context import set_request_context
 
 
 class ObservabilityMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, service_name: str = "unknown-service"):
+    def __init__(self, app, service_name: str = "api_gateway"):
         super().__init__(app)
         self.service_name = service_name
 
