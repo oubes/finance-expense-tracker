@@ -8,8 +8,9 @@ from core.exceptions import ServiceUnavailableError
 def render(ingestion_service: IngestionService) -> None:
     if st.button("Health Check"):
         try:
-            response = ingestion_service.health_check()
-            st.write(response)
+            with st.spinner("Checking health..."):
+                response = ingestion_service.health_check()
+                st.write(response)
 
         except ServiceUnavailableError:
             st.error("Service is currently unavailable. Please try again later.")
