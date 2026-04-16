@@ -21,7 +21,7 @@ class IngestionClient:
                 timeout=3.0,
             )
         except httpx.TimeoutException as e:
-            logger.error("Ingestion health_check timeout", exc_info=True)
+            logger.error("Ingestion health_check timeout")
             raise ServiceUnavailableError("Ingestion service is not responding")
 
     def start_ingestion(self, file_name: str, content: str) -> dict:
@@ -35,7 +35,7 @@ class IngestionClient:
                 timeout=10.0,
             )
         except httpx.TimeoutException as e:
-            logger.error("Ingestion start timeout", exc_info=True)
+            logger.error("Ingestion start timeout")
             raise ServiceUnavailableError("Ingestion service is not responding")
 
     def get_status(self, job_id: str) -> dict:
@@ -45,5 +45,5 @@ class IngestionClient:
                 timeout=5.0,
             )
         except httpx.TimeoutException as e:
-            logger.error("Ingestion get_status timeout", exc_info=True)
+            logger.error("Ingestion get_status timeout")
             raise ServiceUnavailableError("Ingestion service is not responding")
