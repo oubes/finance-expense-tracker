@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from src.core.config.settings import AppSettings
+from source.ingestion_service.core.config.settings import AppSettings
 
 
 class Splitter:

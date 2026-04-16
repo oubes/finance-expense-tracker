@@ -8,3 +8,4 @@ async def health_check():
         "status": "up",
         "status_code": 200,
     }
+    

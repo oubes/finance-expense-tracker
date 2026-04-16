@@ -4,18 +4,17 @@ from pathlib import Path
 
 from langchain_community.document_loaders import PyPDFLoader, PyMuPDFLoader
 from langchain_core.documents import Document
-from src.core.config.settings import AppSettings
+from source.ingestion_service.core.config.settings import AppSettings
 
-from src.core.contracts.loader.document_loader import DocumentLoaderContract
 
 logger = logging.getLogger(__name__)
 
 
 # ---- PyPDF Loader ----
-class PyPDFDocumentLoader(DocumentLoaderContract):
+class PyPDFDocumentLoader:
     # ---- Constructor ----
     def __init__(self, settings: AppSettings):
-        self.data_dir = Path(settings.data.raw_data_dir)
+        self.data_dir = Path(settings.ingestion_data.raw_data_dir)
 
     # ---- Load Method ----
     def load(self, file_name: str) -> list[Document]:
@@ -38,10 +37,10 @@ class PyPDFDocumentLoader(DocumentLoaderContract):
 
 
 # ---- PyMuPDF Loader ----
-class PyMuPDFDocumentLoader(DocumentLoaderContract):
+class PyMuPDFDocumentLoader:
     # ---- Constructor ----
     def __init__(self, settings: AppSettings):
-        self.data_dir = Path(settings.data.raw_data_dir)
+        self.data_dir = Path(settings.ingestion_data.raw_data_dir)
 
     # ---- Load Method ----
     def load(self, file_name: str) -> list[Document]:

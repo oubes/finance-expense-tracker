@@ -2,7 +2,7 @@
 import re
 import math
 from collections import Counter
-from src.core.config.settings import AppSettings
+from source.ingestion_service.core.config.settings import AppSettings
 
 # ---- Scoring Weights ----
 REPETITION_WEIGHT = 0.5

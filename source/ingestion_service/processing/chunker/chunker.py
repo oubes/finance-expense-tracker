@@ -6,18 +6,17 @@ from typing import Any
 from langchain_core.documents import Document
 
 # ---- Internal ----
-from src.core.contracts.chunking.chunker import ChunkerContract
-from src.modules.ingestion.chunker.cleaner_pre import PreTextCleaner
-from src.modules.ingestion.chunker.cleaner_post import PostTextCleaner
-from src.modules.ingestion.chunker.validator import TextValidator
-from src.modules.ingestion.chunker.toc_classifier import TOCClassifier
-from src.modules.ingestion.chunker.spiltter import Splitter
-from src.modules.ingestion.chunker.scoring import ChunkScorer
+from source.ingestion_service.processing.chunker.cleaner_pre import PreTextCleaner
+from source.ingestion_service.processing.chunker.cleaner_post import PostTextCleaner
+from source.ingestion_service.processing.chunker.validator import TextValidator
+from source.ingestion_service.processing.chunker.toc_classifier import TOCClassifier
+from source.ingestion_service.processing.chunker.spiltter import Splitter
+from source.ingestion_service.processing.chunker.scoring import ChunkScorer
 
 logger = logging.getLogger(__name__)
 
 
-class Chunker(ChunkerContract):
+class Chunker:
     # ---- Initialization ----
     def __init__(
         self,
