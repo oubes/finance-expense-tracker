@@ -3,7 +3,7 @@ import logging
 
 from source.ingestion_service.core.config.settings import AppSettings
 from source.ingestion_service.adapters.base_adapter import BaseAPIClient
-from source.ingestion_service.core.exceptions import ServiceUnavailableError
+from source.ingestion_service.core.errors.exceptions import ServiceUnavailableException
 
 # ---- Logger ----
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class BaseInfraClient(BaseAPIClient):
 
         except Exception:
             logger.error("%s health_check failed", self.service_name)
-            raise ServiceUnavailableError(f"{self.service_name} service is not responding")
+            raise ServiceUnavailableException(f"{self.service_name} service is not responding")
 
 
 # ---------- LLM Client ----------

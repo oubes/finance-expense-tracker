@@ -1,4 +1,4 @@
-from fastapi import Depends, Request
+from fastapi import Depends
 from functools import lru_cache
 
 # ---- Settings ----
@@ -32,14 +32,14 @@ def get_settings() -> AppSettings:
     return AppSettings()
 
 # ---- Client ----
-def get_llm_client(request: Request) -> LLMClient:
-    return request.app.state.llm_client
+def get_llm_client(settings: AppSettings = Depends(get_settings)) -> LLMClient:
+    return LLMClient(settings=settings)
 
-def get_embedding_client(request: Request) -> EmbeddingClient:
-    return request.app.state.embedding_client
+def get_embedding_client(settings: AppSettings = Depends(get_settings)) -> EmbeddingClient:
+    return EmbeddingClient(settings=settings)
 
-def get_vector_db_client(request: Request) -> VectorDBClient:
-    return request.app.state.vector_db_client
+def get_vector_db_client(settings: AppSettings = Depends(get_settings)) -> VectorDBClient:
+    return VectorDBClient(settings=settings)
 
 
 #--- Services ----

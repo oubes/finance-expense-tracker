@@ -27,7 +27,7 @@ class AppSettings(BaseSettings):
 
     # ------------------ server ------------------
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = 8002
 
     # ------------------ services ------------------
     INFRA_SERVICE_URL: str = Field(default="http://localhost:8003")
