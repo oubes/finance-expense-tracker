@@ -5,9 +5,8 @@ class Settings(BaseSettings):
 
     # ------------------ pydantic config ------------------
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file="source/api_gateway/.env",
         env_file_encoding="utf-8",
-        extra="ignore",
     )
 
     # ------------------ application ------------------
@@ -21,8 +20,8 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # ------------------ services ------------------
-    CHAT_SERVICE_URL: str = "http://rag:8001"
-    INGESTION_SERVICE_URL: str = "http://ingestion:8002"
+    CHAT_SERVICE_URL: str = "http://localhost:8001"
+    INGESTION_SERVICE_URL: str = "http://localhost:8002"
 
     # ------------------ resilience: circuit breaker ------------------
     CB_FAIL_THRESHOLD: int = 3
@@ -33,6 +32,7 @@ class Settings(BaseSettings):
     RETRY_BACKOFF: float = 0.5
 
     # ------------------ http client ------------------
+    HTTP_TIMEOUT_SECONDS: float = 2.0
     HTTP_CONNECT_TIMEOUT: float = 2.0
     HTTP_READ_TIMEOUT: float = 5.0
     HTTP_WRITE_TIMEOUT: float = 5.0

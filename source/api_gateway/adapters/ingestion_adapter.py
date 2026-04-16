@@ -14,10 +14,13 @@ class IngestionClient(BaseClient):
 
     async def ingest(self, payload: dict) -> Any:
         return await self._request(
-            "POST",
-            "/ingest",
+            method="POST",
+            url="/api/ingestion/ingest",
             json=payload,
         )
 
     async def health(self) -> Any:
-        return await self._request("GET", "/health")
+        return await self._request(
+            method="GET",
+            url="/api/ingestion/health"
+        )

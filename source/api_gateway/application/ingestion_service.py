@@ -56,11 +56,10 @@ class IngestionService:
 
         try:
             response = await self.ingestion_client.health()
-
             return ServiceHealthResponse(
                 status="up",
                 service="ingestion",
-                error=None if response.status_code == 200 else f"http_{response.status_code}",
+                error=None if response["status_code"] == 200 else f"http_{response['status_code']}",
             )
 
         except Exception as e:
