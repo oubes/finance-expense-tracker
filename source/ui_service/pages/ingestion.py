@@ -10,7 +10,8 @@ def render(ingestion_service: IngestionService) -> None:
         try:
             with st.spinner("Checking health..."):
                 response = ingestion_service.health_check()
-                st.write(response)
+                st.balloons()
+                st.success(f"Ingestion Service is {response['status']}")
 
         except ServiceUnavailableError:
             st.error("Service is currently unavailable. Please try again later.")

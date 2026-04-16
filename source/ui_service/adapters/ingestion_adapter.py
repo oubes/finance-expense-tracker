@@ -17,17 +17,17 @@ class IngestionClient:
     def health_check(self) -> dict:
         try:
             return self.api.get(
-                "/api/v1/ingestion/health",
-                timeout=3.0,
+                "/api/ingestion/health",
+                timeout=1.0,
             )
         except httpx.TimeoutException as e:
             logger.error("Ingestion health_check timeout")
             raise ServiceUnavailableError("Ingestion service is not responding")
-
+        
     def start_ingestion(self, file_name: str, content: str) -> dict:
         try:
             return self.api.post(
-                "/api/v1/ingestion",
+                "/api/ingestion",
                 json={
                     "file_name": file_name,
                     "content": content,
@@ -41,7 +41,7 @@ class IngestionClient:
     def get_status(self, job_id: str) -> dict:
         try:
             return self.api.get(
-                f"/api/v1/ingestion/{job_id}",
+                f"/api/ingestion/{job_id}",
                 timeout=5.0,
             )
         except httpx.TimeoutException as e:
