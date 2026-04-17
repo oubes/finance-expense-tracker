@@ -1,5 +1,5 @@
 import logging
-from src.core.config.settings import AppSettings
+from source.infra_service.core.config.settings import AppSettings
 from source.infra_service.adapters.vectordb_adapter import PostgresVectorClient
 
 logger = logging.getLogger(__name__)

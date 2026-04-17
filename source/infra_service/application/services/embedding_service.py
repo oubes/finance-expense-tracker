@@ -3,6 +3,7 @@ import logging
 import asyncio
 
 from openai import AsyncOpenAI
+from source.infra_service.core.config.settings import AppSettings
 from source.infra_service.adapters.embedding_adapter import EmbeddingClient
 
 # ---- Logger Initialization ----
@@ -16,19 +17,18 @@ class EmbeddingService:
     def __init__(
         self,
         client: EmbeddingClient,
-        max_concurrency: int = 5,
-        max_retries: int = 3,
-        base_delay: float = 0.5
+        settings: AppSettings,
     ):
         logger.info("Initializing EmbeddingService")
 
         self._client: AsyncOpenAI = client.get_client()
         self._model = client.get_model()
-
-        self._semaphore = asyncio.Semaphore(max_concurrency)
-
-        self._max_retries = max_retries
-        self._base_delay = base_delay
+        
+        self.max_concurrency = settings.embeddings.max_concurrency
+        self._max_retries = settings.embeddings.max_retries
+        self._base_delay = settings.embeddings.base_delay
+        
+        self._semaphore = asyncio.Semaphore(self.max_concurrency)
 
         logger.info("EmbeddingService initialized using model: %s", self._model)
 
