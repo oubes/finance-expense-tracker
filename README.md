@@ -23,43 +23,40 @@ Built around **Agentic Orchestration**, **Hybrid RAG pipelines**, and **persiste
 ```mermaid
 flowchart LR
 
-    %% -------- Layers --------
     subgraph UI_Layer [User Interface]
         Streamlit[Streamlit UI Service]
     end
 
-    subgraph Orchestration_Layer [Gateway & Routing]
+    subgraph Orchestration_Layer [API Gateway Layer]
         AGW[API Gateway]
     end
 
-    subgraph Service_Mesh [Core Services]
+    subgraph Service_Layer [Core Services]
         IGS[Ingestion Service]
         CMS[Chat Service]
     end
 
-    subgraph Heavy_Lift [Infrastructure Layer]
+    subgraph Infra_Layer [Infrastructure Layer]
         INF[Infra Service]
         VDB[(Vector Database)]
     end
 
-    subgraph External_Providers [External AI Providers]
+    subgraph External_AI [External AI Providers]
         LLM[LLM API]
         EMB[Embedding API]
     end
 
-    %% -------- Flow --------
     Streamlit -->|REST| AGW
     AGW -->|REST| IGS
     AGW -->|REST| CMS
-    
+
     IGS -->|REST| INF
     CMS -->|REST| INF
-    
-    INF --> VDB
-    INF -->|API| LLM
-    INF -->|API| EMB
 
-    %% -------- Styling --------
+    INF -->|Query / Store| VDB
+    INF -->|REST API| LLM
+    INF -->|REST API| EMB
+
     classDef ui fill:#f39c12,stroke:#2c3e50,color:#000,font-weight:bold;
     classDef gateway fill:#3498db,stroke:#2c3e50,color:#fff,font-weight:bold;
     classDef service fill:#9b59b6,stroke:#2c3e50,color:#fff;
@@ -163,6 +160,36 @@ The `chat_service` utilizes a graph-based state machine to classify intent, retr
 ├── data/                    # Storage for raw documents
 ├── requirements.txt         # Global dependencies
 └── config.yaml              # System-wide parameters
+```
+
+---
+
+## ⚙️ Environment Configuration
+
+Each microservice is fully isolated and maintains its own environment configuration.
+
+There is no shared or global `.env` file across the system.
+
+---
+
+### 📦 Service-Level Setup
+
+Each microservice includes its own `.env.example` file:
+
+- `source/api_gateway/.env.example`
+- `source/chat_service/.env.example`
+- `source/ingestion_service/.env.example`
+- `source/infra_service/.env.example`
+- `source/ui_service/.env.example`
+
+---
+
+### 🔧 How to Configure
+
+For each service, create a local `.env` file by copying its example:
+
+```bash
+cp .env.example .env
 ```
 
 ---
