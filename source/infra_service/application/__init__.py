@@ -1,6 +1,6 @@
 from source.infra_service.application.services.embedding_service import EmbeddingService
 from source.infra_service.application.services.llm_service import LLMService
-from source.infra_service.application.services.vectordb_service import PostgresVectorClient
+from source.infra_service.application.services.vectordb_service import VectorDBService
 
 from source.infra_service.application.use_cases.chunk_use_case import ChunkingUseCase
 from source.infra_service.application.use_cases.semantic_mem_use_case import SemanticMemoryUseCase
