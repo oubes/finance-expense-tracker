@@ -1,17 +1,15 @@
 import logging
 from src.core.config.settings import AppSettings
-from source.infra_service.adapters.vectordb_adapter import ConnectionPool, PostgresVectorClient
+from source.infra_service.adapters.vectordb_adapter import PostgresVectorClient
 
 logger = logging.getLogger(__name__)
 
 
 class VectorDBService:
 
-    def __init__(self, settings: AppSettings, pool: ConnectionPool, client: PostgresVectorClient):
+    def __init__(self, settings: AppSettings, client: PostgresVectorClient):
         self.settings = settings
-        self.pool = pool
         self.client = client
-
         self._initialized = False
 
     # ---- start system ----
@@ -19,7 +17,7 @@ class VectorDBService:
         logger.info("Starting VectorDBService...")
 
         try:
-            await self.pool.init()
+            # no pool init anymore
             self._initialized = True
             return True
         except Exception:
@@ -29,14 +27,11 @@ class VectorDBService:
     # ---- health check ----
     async def health(self) -> bool:
         try:
-            conn = await self.pool.acquire()
-
-            async with conn.cursor() as cur:
-                await cur.execute("SELECT 1;")
-
-            await self.pool.release(conn)
-
-            return True
+            result = await self.client.execute(
+                "SELECT 1;",
+                fetch=True
+            )
+            return result is not None
 
         except Exception:
             logger.exception("health check failed.")
@@ -44,10 +39,8 @@ class VectorDBService:
 
     # ---- close system ----
     async def close(self):
-        try:
-            await self.pool.close()
-        except Exception:
-            logger.exception("close failed.")
+        # no pool to close anymore
+        self._initialized = False
 
     # ---- execute ----
     async def execute(self, query: str, params=None, fetch: bool = False):

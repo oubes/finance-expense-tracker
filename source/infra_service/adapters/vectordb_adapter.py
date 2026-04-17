@@ -10,7 +10,7 @@ from source.infra_service.core.config.settings import AppSettings
 logger = logging.getLogger(__name__)
 
 
-# ---- Postgres Vector Client (NO POOL) ----
+# ---- Postgres Vector Client ----
 class PostgresVectorClient:
 
     def __init__(self, settings: AppSettings):

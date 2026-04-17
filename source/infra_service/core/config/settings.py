@@ -5,7 +5,7 @@ class LLMConfig(BaseSettings):
     provider: str
     base_url: str
     model: str
-    temperature: float = Field(0.1, ge=0.0, le=1.0)  # Ensure it's between 0 and 1
+    temperature: float = Field(0.1, ge=0.0, le=1.0)
     max_tokens: int = Field(256, gt=0)
     max_retries: int = Field(3, gt=0)
     base_delay: float = Field(0.5, gt=0.0)
