@@ -4,7 +4,7 @@ from fastapi import FastAPI
 import logging
 
 from source.infra_service.adapters import LLMClient, EmbeddingClient, PostgresVectorClient
-from source.infra_service.core.config.settings import AppSettings
+from source.infra_service.core.config.settings import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("[LIFESPAN] startup initiated")
 
-    settings = AppSettings()
+    settings = get_config()
 
     # ---- infra clients ----
     llm_client = LLMClient(settings)
