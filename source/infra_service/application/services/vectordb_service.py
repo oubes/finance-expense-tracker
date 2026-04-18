@@ -81,18 +81,3 @@ class VectorDBService:
         self._ensure_started()
 
         return await self.client.commit()
-
-    # ---- execute with keys ----
-    async def execute_with_keys(self, query, keys, params=None, fetch=True):
-        self._ensure_started()
-
-        return await self.client.execute_with_keys(
-            query=query,
-            keys=keys,
-            params=params,
-            fetch=fetch
-        )
-
-    # ---- mapping ----
-    def map_to_dicts(self, rows, keys):
-        return self.client.map_to_dicts(rows, keys)
