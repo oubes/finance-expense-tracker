@@ -17,7 +17,6 @@ def _get(obj: Any, key: str) -> Any:
 def _to_params(r: Any) -> tuple:
     return (
         _get(r, "id"),
-        _get(r, "chunk_id"),
         _get(r, "content"),
         _get(r, "summary"),
         _get(r, "embedding"),
@@ -47,7 +46,8 @@ class ChunkingUseCase:
         try:
             table_exists = await self.db.execute_one(self.q.TABLE_EXISTS_SQL)
             print(table_exists)
-            if table_exists['to_regclass'] is not None:
+
+            if table_exists and table_exists.get("to_regclass"):
                 logger.info("[Chunking Use Case] chunks_table already initialized")
                 return True
 
@@ -55,7 +55,8 @@ class ChunkingUseCase:
                 dim=self.settings.embeddings.dimension
             )
 
-            await self.db.execute(sql)
+            async with self.db:
+                await self.db.execute(sql)
 
             logger.info("[Chunking Use Case] init success")
             return False
@@ -63,19 +64,25 @@ class ChunkingUseCase:
         except Exception as e:
             logger.exception("[Chunking Use Case] chunks_table init failed")
             raise RuntimeError("Failed to initialize chunks_table") from e
-        
-    # --- Health Check ----
+
+    # ---- HEALTH CHECK ----
     async def health(self):
         logger.info("[Chunking Use Case] health check start")
-        
+
         try:
             table_exists = await self.db.execute_one(self.q.TABLE_EXISTS_SQL)
-            if table_exists['to_regclass'] is not None:
+
+            if table_exists and table_exists.get("to_regclass"):
                 logger.info("[Chunking Use Case] health check completed successfully")
                 return True
+
+            return False
+
         except Exception as e:
             logger.exception("[Chunking Use Case] health check failed")
-            raise RuntimeError("[Chunking Use Case] Chunks_table health check failed") from e
+            raise RuntimeError(
+                "[Chunking Use Case] Chunks_table health check failed"
+            ) from e
 
     # ---- UPSERT ----
     async def upsert(self, records: list[Any]) -> None:
@@ -87,10 +94,11 @@ class ChunkingUseCase:
         try:
             params_list = [_to_params(r) for r in records]
 
-            await self.db.executemany(
-                self.q.INSERT_CHUNK_SQL,
-                params_list
-            )
+            async with self.db:
+                await self.db.executemany(
+                    self.q.INSERT_CHUNK_SQL,
+                    params_list
+                )
 
             logger.info(
                 f"[Chunking Use Case] upsert completed | count={len(records)}"
@@ -98,34 +106,42 @@ class ChunkingUseCase:
 
         except Exception as e:
             logger.exception("[Chunking Use Case] upsert failed")
-            raise RuntimeError("[Chunking Use Case] Chunks_table upsert failed") from e
+            raise RuntimeError(
+                "[Chunking Use Case] Chunks_table upsert failed"
+            ) from e
 
     # ---- DELETE ALL ----
     async def delete_all(self) -> None:
         logger.info("[Chunking Use Case] delete all start")
 
         try:
-            await self.db.execute(self.q.DELETE_CHUNKS_SQL)
+            async with self.db:
+                await self.db.execute(self.q.DELETE_CHUNKS_SQL)
 
             logger.info("[Chunking Use Case] delete all success")
 
         except Exception as e:
             logger.exception("[Chunking Use Case] delete_all failed")
-            raise RuntimeError("[Chunking Use Case] Chunks_table delete_all failed") from e
+            raise RuntimeError(
+                "[Chunking Use Case] Chunks_table delete_all failed"
+            ) from e
 
     # ---- DROP TABLE ----
     async def drop_table(self) -> None:
         logger.info("[Chunking Use Case] drop table start")
 
         try:
-            await self.db.execute(self.q.DROP_CHUNKS_TABLE_SQL)
+            async with self.db:
+                await self.db.execute(self.q.DROP_CHUNKS_TABLE_SQL)
 
             logger.info("[Chunking Use Case] drop table success")
 
         except Exception as e:
             logger.exception("[Chunking Use Case] drop_table failed")
-            raise RuntimeError("[Chunking Use Case] Chunks_table drop_table failed") from e
-        
+            raise RuntimeError(
+                "[Chunking Use Case] Chunks_table drop_table failed"
+            ) from e
+
     # ---- COUNT ----
     async def count(self) -> int:
         logger.info("[Chunking Use Case] count start")
