@@ -71,12 +71,24 @@ class PostgresVectorClient:
 
         try:
             async with self._conn.cursor(row_factory=dict_row) as cur:  # type: ignore
-                await cur.execute(query, params or ()) # type: ignore
+                await cur.execute(query, params) # type: ignore
                 return await cur.fetchone()
 
         except Exception as e:
             logger.exception("execute_one failed")
             raise RuntimeError("Postgres execute_one failed") from e
+        
+    # ---- execute many ----
+    async def executemany(self, query: str, params_list: list[tuple]):
+        await self.connect()
+
+        try:
+            async with self._conn.cursor() as cur: # type: ignore
+                await cur.executemany(query, params_list) # type: ignore
+
+        except Exception as e:
+            logger.exception("executemany failed")
+            raise RuntimeError("Postgres executemany failed") from e
 
     # ---- commit ----
     async def commit(self):
@@ -121,20 +133,3 @@ class PostgresVectorClient:
                 await self.commit()
         finally:
             await self.close()
-
-    # ---- mapping ----
-    def map_to_dicts(self, rows, keys):
-        return [
-            row if isinstance(row, dict)
-            else {k: row[i] for i, k in enumerate(keys)}
-            for row in rows
-        ]
-
-    # ---- execute + map ----
-    async def execute_with_keys(self, query, keys, params=None, fetch=True):
-        rows = await self.execute(query, params=params, fetch=fetch)
-
-        if not rows:
-            return []
-
-        return self.map_to_dicts(rows, keys)
