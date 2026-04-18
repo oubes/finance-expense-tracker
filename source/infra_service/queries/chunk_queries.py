@@ -4,7 +4,7 @@
 CREATE_CHUNKS_TABLE_SQL = """
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE IF NOT EXISTS chunk_embeddings (
+CREATE TABLE IF NOT EXISTS chunks_table (
     id UUID PRIMARY KEY,
     chunk_id UUID,
 
@@ -27,15 +27,15 @@ CREATE TABLE IF NOT EXISTS chunk_embeddings (
     score FLOAT
 );
 
-CREATE INDEX IF NOT EXISTS idx_chunk_embeddings_vector_hnsw
-ON chunk_embeddings
+CREATE INDEX IF NOT EXISTS idx_chunks_table_vector_hnsw
+ON chunks_table
 USING hnsw (embedding vector_cosine_ops);
 """
 
 
 # ---- Upsert ----
 INSERT_CHUNK_SQL = """
-INSERT INTO chunk_embeddings (
+INSERT INTO chunks_table (
     id, chunk_id,
     content, summary, embedding,
     chunk_title,
@@ -69,8 +69,13 @@ DO UPDATE SET
 
 
 # ---- Delete ----
-DELETE_CHUNKS_SQL = "DELETE FROM chunk_embeddings;"
+DELETE_CHUNKS_SQL = "DELETE FROM chunks_table;"
 
+# ---- Drop ----
+DROP_CHUNKS_TABLE_SQL = "DROP TABLE chunks_table;"
 
 # ---- Count ----
-COUNT_CHUNKS_SQL = "SELECT COUNT(*) FROM chunk_embeddings;"
+COUNT_CHUNKS_SQL = "SELECT COUNT(*) FROM chunks_table;"
+
+# ---- Health Check ----
+TABLE_EXISTS_SQL = "SELECT to_regclass('public.chunks_table');"
