@@ -62,10 +62,12 @@ async def get_vector_db_service(
 
 async def get_chunking_use_case(
     vector_db_client: PostgresVectorClient = Depends(get_vector_db_client),
+    settings: AppSettings = Depends(get_settings)
 ) -> ChunkingUseCase:
     return ChunkingUseCase(
         client=vector_db_client,
-        queries=chunk_queries
+        queries=chunk_queries,
+        settings=settings
     )
 
 async def get_semantic_memory_use_case(
