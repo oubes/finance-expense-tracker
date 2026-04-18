@@ -2,11 +2,8 @@
 
 # ---- Create Table ----
 CREATE_CHUNKS_TABLE_SQL = """
-CREATE EXTENSION IF NOT EXISTS vector;
-
 CREATE TABLE IF NOT EXISTS chunks_table (
     id UUID PRIMARY KEY,
-    chunk_id UUID,
 
     content TEXT,
     summary TEXT,
@@ -21,7 +18,7 @@ CREATE TABLE IF NOT EXISTS chunks_table (
     page INT,
     total_pages INT,
 
-    created_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     pipeline_version TEXT,
 
     score FLOAT
@@ -36,7 +33,7 @@ USING hnsw (embedding vector_cosine_ops);
 # ---- Upsert ----
 INSERT_CHUNK_SQL = """
 INSERT INTO chunks_table (
-    id, chunk_id,
+    id,
     content, summary, embedding,
     chunk_title,
     doc_title, source,
@@ -46,10 +43,13 @@ INSERT INTO chunks_table (
     score
 )
 VALUES (
+    %s,
     %s, %s, %s,
-    %s, %s, %s,
-    %s, %s, %s,
-    %s, %s, %s,
+    %s,
+    %s, %s,
+    %s, %s,
+    %s,
+    %s,
     %s
 )
 ON CONFLICT (id)
@@ -71,11 +71,14 @@ DO UPDATE SET
 # ---- Delete ----
 DELETE_CHUNKS_SQL = "DELETE FROM chunks_table;"
 
+
 # ---- Drop ----
 DROP_CHUNKS_TABLE_SQL = "DROP TABLE chunks_table;"
 
+
 # ---- Count ----
 COUNT_CHUNKS_SQL = "SELECT COUNT(*) FROM chunks_table;"
+
 
 # ---- Health Check ----
 TABLE_EXISTS_SQL = "SELECT to_regclass('public.chunks_table');"
