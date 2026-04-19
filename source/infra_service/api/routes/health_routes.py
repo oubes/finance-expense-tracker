@@ -1,11 +1,15 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, status
+from source.infra_service.core.errors.exceptions import ServiceUnavailableException
 
 router = APIRouter()
 
-@router.get("")
+
+@router.get("/", status_code=status.HTTP_200_OK)
 async def health_check():
-    return {
-        "status": "up",
-        "status_code": 200,
-    }
-    
+    try:
+        return {
+            "status": "up",
+        }
+
+    except Exception:
+        raise ServiceUnavailableException("Core")
