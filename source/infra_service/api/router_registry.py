@@ -6,8 +6,8 @@ from source.infra_service.api.routes.chunks_db_routes import router as chunks_db
 
 
 def register_routes(app):
-    app.include_router(health_router, prefix="/api/infra/health", tags=["health"])
-    app.include_router(llm_router, prefix="/api/infra/llm", tags=["llm"])
-    app.include_router(embedder_router, prefix="/api/infra/embedding", tags=["embedder"])
-    app.include_router(chunks_db_router, prefix="/api/infra/chunks", tags=["chunks"])
+    app.include_router(health_router, prefix="/api/infra/health", tags=["Health"])
+    app.include_router(llm_router, prefix="/api/infra/llm", tags=["LLM"])
+    app.include_router(embedder_router, prefix="/api/infra/embedding", tags=["Embedder"])
+    app.include_router(chunks_db_router, prefix="/api/infra/chunks_db", tags=["Chunks Database"])
     return app
