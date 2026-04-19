@@ -13,6 +13,38 @@ from source.infra_service.api.models.embedder_model import (
 router = APIRouter()
 
 
+# ---- ACTIVE HEALTH CHECK ----
+@router.get("/health")
+async def health(
+    embedding_service=Depends(get_embedding_service),
+):
+    try:
+        test_text = "Hi"
+
+        embedding = await embedding_service.embed(test_text)
+
+        if not embedding or len(embedding) == 0:
+            raise ValueError("Empty embedding response")
+
+        return JSONResponse(
+            content={
+                "status": "up",
+                "service": "embedding",
+                "embedding_dim": len(embedding),
+            },
+            status_code=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        return JSONResponse(
+            content={
+                "status": "down",
+                "error": str(e),
+            },
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
 # ---- SINGLE EMBED ----
 @router.post("/embed", response_model=EmbedResponse)
 async def embed(
