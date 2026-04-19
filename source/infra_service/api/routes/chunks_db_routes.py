@@ -6,7 +6,6 @@ from source.infra_service.api.models.chunks_db_model import ChunkIn
 from source.infra_service.core.di.dependencies import (
     get_chunking_use_case,
 )
-import numpy as np
 import logging
 
 # ---- Logger ----
@@ -26,7 +25,6 @@ async def health_check(
         return JSONResponse(
             content={
                 "message": "Chunking service is up",
-                "status_code": status_code
             },
             status_code=status_code,
         )
@@ -36,7 +34,6 @@ async def health_check(
         return JSONResponse(
             content={
                 "message": "Chunking service is unavailable",
-                "status_code": status_code
             },
             status_code=status_code,
         )
@@ -53,7 +50,6 @@ async def init_chunking_table(
             return JSONResponse(
                 content={
                     "message": "Chunks_table already initialized",
-                    "status_code": status_code
                 },
                 status_code=status_code,
             )
@@ -62,7 +58,6 @@ async def init_chunking_table(
             return JSONResponse(
                 content={
                     "message": "Chunks_table initialized",
-                    "status_code": status_code
                 },
                 status_code=status_code,
             )
@@ -72,7 +67,6 @@ async def init_chunking_table(
         return JSONResponse(
             content={
                 "message": "Failed to initialize chunks_table",
-                "status_code": status_code
             },
             status_code=status_code,
         )
@@ -88,7 +82,6 @@ async def delete_chunks(
         return JSONResponse(
             content={
                 "message": "All chunks deleted",
-                "status_code": status_code
             },
             status_code=status_code,
         )
@@ -98,7 +91,6 @@ async def delete_chunks(
         return JSONResponse(
             content={
                 "message": "Failed to delete chunks",
-                "status_code": status_code
             },
             status_code=status_code,
         )
@@ -114,7 +106,6 @@ async def drop_chunks_table(
         return JSONResponse(
             content={
                 "message": "Chunks_table dropped",
-                "status_code": status_code
             },
             status_code=status_code,
         )
@@ -124,7 +115,6 @@ async def drop_chunks_table(
         return JSONResponse(
             content={
                 "message": "Failed to drop chunks_table",
-                "status_code": status_code
             },
             status_code=status_code,
         )
@@ -140,7 +130,6 @@ async def count_chunks(
         return JSONResponse(
             content={
                 "message": f"Total chunks: {count}",
-                "status_code": status_code
             },
             status_code=status_code,
         )
@@ -149,8 +138,7 @@ async def count_chunks(
         status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return JSONResponse(
             content={
-                "message": "Failed to count chunks",
-                "status_code": status_code
+                "message": "Failed to count chunks"
             },
             status_code=status_code,
         )
@@ -167,7 +155,6 @@ async def insert_chunks(
         return JSONResponse(
             content={
                 "message": "chunks list is empty",
-                "status_code": status_code
             },
             status_code=status_code,
         )
@@ -182,22 +169,20 @@ async def insert_chunks(
 
         await chunking_use_case.upsert(payload)
 
+        status_code=status.HTTP_200_OK
         return JSONResponse(
             content={
                 "message": f"Inserted {len(payload)} chunks",
                 "count": len(payload),
-                "status_code": status.HTTP_200_OK,
             },
-            status_code=status.HTTP_200_OK,
+            status_code=status_code,
         )
-
     except Exception:
         logger.exception("[Chunking Routes] insert failed")
         status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return JSONResponse(
             content={
                 "message": "Failed to insert chunks",
-                "status_code": status_code,
             },
             status_code=status_code,
         )
