@@ -24,9 +24,18 @@ CREATE TABLE IF NOT EXISTS chunks_table (
     score FLOAT
 );
 
+-- ---- Vector Index (HNSW) ----
 CREATE INDEX IF NOT EXISTS idx_chunks_table_vector_hnsw
 ON chunks_table
 USING hnsw (embedding vector_cosine_ops);
+
+-- ---- Full Text Index (BM25) ----
+CREATE INDEX IF NOT EXISTS idx_chunks_table_fts
+ON chunks_table
+USING GIN (
+    setweight(to_tsvector('simple', coalesce(content,'')), 'A') ||
+    setweight(to_tsvector('simple', coalesce(summary,'')), 'B')
+);
 """
 
 
@@ -65,6 +74,89 @@ DO UPDATE SET
     created_at = EXCLUDED.created_at,
     pipeline_version = EXCLUDED.pipeline_version,
     score = EXCLUDED.score;
+"""
+
+
+# ---- BM25 SEARCH ----
+BM25_SEARCH_SQL = """
+WITH docs AS (
+    SELECT
+        id,
+        content,
+        summary,
+        chunk_title,
+        doc_title,
+        source,
+        page,
+        total_pages,
+        created_at,
+        pipeline_version,
+        score,
+        (
+            setweight(to_tsvector('simple', coalesce(content,'')), 'A') ||
+            setweight(to_tsvector('simple', coalesce(summary,'')), 'B')
+        ) AS tsv
+    FROM chunks_table
+)
+SELECT
+    id,
+    content,
+    summary,
+    chunk_title,
+    doc_title,
+    source,
+    page,
+    total_pages,
+    created_at,
+    pipeline_version,
+    score,
+    COALESCE(
+        ts_rank_cd(
+            tsv,
+            plainto_tsquery('simple', %s)
+        ),
+        0
+    ) AS bm25_score
+FROM docs
+WHERE tsv @@ plainto_tsquery('simple', %s)
+ORDER BY bm25_score DESC
+LIMIT %s;
+"""
+
+
+# ---- VECTOR SEARCH ----
+VECTOR_SEARCH_SQL = """
+SELECT
+    id,
+    content,
+    summary,
+    chunk_title,
+    doc_title,
+    source,
+    page,
+    total_pages,
+    created_at,
+    pipeline_version,
+    distance,
+    1 / (1 + distance) AS vector_score
+FROM (
+    SELECT
+        id,
+        content,
+        summary,
+        chunk_title,
+        doc_title,
+        source,
+        page,
+        total_pages,
+        created_at,
+        pipeline_version,
+        embedding <=> %s::vector AS distance
+    FROM chunks_table
+    WHERE embedding IS NOT NULL
+) t
+ORDER BY distance ASC
+LIMIT %s;
 """
 
 
