@@ -71,34 +71,6 @@ async def init_chunking_table(
         raise InternalServerException("Failed to initialize chunks_table")
 
 
-# ---- Delete All Chunks ----
-@router.delete("/delete_all_chunks", response_model=DeleteChunksResponse, status_code=status.HTTP_200_OK)
-async def delete_chunks(
-    chunking_use_case=Depends(get_chunking_use_case),
-):
-    try:
-        await chunking_use_case.delete_all()
-        return DeleteChunksResponse(message="All chunks deleted")
-
-    except Exception:
-        logger.exception("[Chunking Routes] delete failed")
-        raise InternalServerException("Failed to delete chunks")
-
-
-# ---- Drop Chunks Table ----
-@router.delete("/drop_chunks_table", response_model=DropTableResponse, status_code=status.HTTP_200_OK)
-async def drop_chunks_table(
-    chunking_use_case=Depends(get_chunking_use_case),
-):
-    try:
-        await chunking_use_case.drop_table()
-        return DropTableResponse(message="Chunks_table dropped")
-
-    except Exception:
-        logger.exception("[Chunking Routes] drop failed")
-        raise InternalServerException("Failed to drop chunks_table")
-
-
 # ---- Count Chunks ----
 @router.get("/count_chunks", response_model=CountResponse, status_code=status.HTTP_200_OK)
 async def count_chunks(
@@ -223,3 +195,30 @@ async def hybrid_search(
     except Exception:
         logger.exception("[Chunking Routes] hybrid search failed")
         raise InternalServerException("Hybrid search failed")
+    
+# ---- Delete All Chunks ----
+@router.delete("/delete_all_chunks", response_model=DeleteChunksResponse, status_code=status.HTTP_200_OK)
+async def delete_chunks(
+    chunking_use_case=Depends(get_chunking_use_case),
+):
+    try:
+        await chunking_use_case.delete_all()
+        return DeleteChunksResponse(message="All chunks deleted")
+
+    except Exception:
+        logger.exception("[Chunking Routes] delete failed")
+        raise InternalServerException("Failed to delete chunks")
+
+
+# ---- Drop Chunks Table ----
+@router.delete("/drop_chunks_table", response_model=DropTableResponse, status_code=status.HTTP_200_OK)
+async def drop_chunks_table(
+    chunking_use_case=Depends(get_chunking_use_case),
+):
+    try:
+        await chunking_use_case.drop_table()
+        return DropTableResponse(message="Chunks_table dropped")
+
+    except Exception:
+        logger.exception("[Chunking Routes] drop failed")
+        raise InternalServerException("Failed to drop chunks_table")
