@@ -9,6 +9,7 @@ def _random_embedding(dim: int = 1024) -> list[float]:
     return np.round(np.random.rand(dim), 4).tolist()
 
 # ---- Chunk Models ----
+
 class ChunkBase(BaseModel):
     content: str
     summary: str
@@ -19,7 +20,9 @@ class ChunkBase(BaseModel):
     total_pages: int
     created_at: datetime
     pipeline_version: str
-    score: float = 0.0
+    chunk_score: float = 0.0
+    bm25_score: float = 0.0
+    vector_score: float = 0.0
 
 class ChunkIn(ChunkBase):
     embedding: list[float] = Field(
