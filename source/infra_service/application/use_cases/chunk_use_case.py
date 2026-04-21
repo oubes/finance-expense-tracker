@@ -219,12 +219,13 @@ class ChunkingUseCase:
 
             bm25 = self._normalize_bm25(bm25)
             vector = self._normalize_vector(vector)
-
+            print(f"\n\n=====> BM25: {bm25} <=====\n\n")
+            print(f"\n\n=====> Vector: {vector} <=====\n\n")
             merged = self._merge(bm25, vector, weights)
 
             results = sorted(
                 merged.values(),
-                key=lambda x: x.get("score", 0.0),
+                key=lambda x: x.get("vector_score", 0.0),
                 reverse=True,
             )
 
@@ -237,38 +238,38 @@ class ChunkingUseCase:
     # ---- NORMALIZE BM25 ----
     def _normalize_bm25(self, rows):
         out = []
-        for r in rows or []:
-            if isinstance(r, (tuple, list)):
+        for row in rows or []:
+            if isinstance(row, (tuple, list)):
                 out.append({
-                    "id": r[0],
-                    "content": r[1],
-                    "summary": r[2],
-                    "chunk_title": r[3],
-                    "doc_title": r[4],
-                    "source": r[5],
-                    "page": r[6],
-                    "total_pages": r[7],
-                    "created_at": r[8],
-                    "pipeline_version": r[9],
-                    "score": r[10],
-                    "bm25_score": float(r[11] if len(r) > 11 else 0.0),
+                    "id": row[0],
+                    "content": row[1],
+                    "summary": row[2],
+                    "chunk_title": row[3],
+                    "doc_title": row[4],
+                    "source": row[5],
+                    "page": row[6],
+                    "total_pages": row[7],
+                    "created_at": row[8],
+                    "pipeline_version": row[9],
+                    "chunk_score": float(row[10]) if len(row) > 10 and row[10] is not None else 0.0,
+                    "bm25_score": float(row[11] if len(row) > 11 else 0.0),
                     "vector_score": 0.0,
                 })
                 continue
 
             out.append({
-                "id": r.get("id"),
-                "content": r.get("content"),
-                "summary": r.get("summary"),
-                "chunk_title": r.get("chunk_title"),
-                "doc_title": r.get("doc_title"),
-                "source": r.get("source"),
-                "page": r.get("page"),
-                "total_pages": r.get("total_pages"),
-                "created_at": r.get("created_at"),
-                "pipeline_version": r.get("pipeline_version"),
-                "score": r.get("score"),
-                "bm25_score": float(r.get("bm25_score", 0.0)),
+                "id": row.get("id"),
+                "content": row.get("content"),
+                "summary": row.get("summary"),
+                "chunk_title": row.get("chunk_title"),
+                "doc_title": row.get("doc_title"),
+                "source": row.get("source"),
+                "page": row.get("page"),
+                "total_pages": row.get("total_pages"),
+                "created_at": row.get("created_at"),
+                "pipeline_version": row.get("pipeline_version"),
+                "chunk_score": row.get("score"),
+                "bm25_score": float(row.get("bm25_score", 0.0)),
                 "vector_score": 0.0,
             })
         return out
@@ -276,39 +277,39 @@ class ChunkingUseCase:
     # ---- NORMALIZE VECTOR ----
     def _normalize_vector(self, rows):
         out = []
-        for r in rows or []:
-            if isinstance(r, (tuple, list)):
+        for row in rows or []:
+            if isinstance(row, (tuple, list)):
                 out.append({
-                    "id": r[0],
-                    "content": r[1],
-                    "summary": r[2],
-                    "chunk_title": r[3],
-                    "doc_title": r[4],
-                    "source": r[5],
-                    "page": r[6],
-                    "total_pages": r[7],
-                    "created_at": r[8],
-                    "pipeline_version": r[9],
-                    "score": r[10],
+                    "id": row[0],
+                    "content": row[1],
+                    "summary": row[2],
+                    "chunk_title": row[3],
+                    "doc_title": row[4],
+                    "source": row[5],
+                    "page": row[6],
+                    "total_pages": row[7],
+                    "created_at": row[8],
+                    "pipeline_version": row[9],
+                    "chunk_score": float(row[10]) if len(row) > 10 and row[10] is not None else 0.0,
                     "bm25_score": 0.0,
-                    "vector_score": float(r[11] if len(r) > 11 else 0.0),
+                    "vector_score": float(row[11] if len(row) > 11 else 0.0),
                 })
                 continue
 
             out.append({
-                "id": r.get("id"),
-                "content": r.get("content"),
-                "summary": r.get("summary"),
-                "chunk_title": r.get("chunk_title"),
-                "doc_title": r.get("doc_title"),
-                "source": r.get("source"),
-                "page": r.get("page"),
-                "total_pages": r.get("total_pages"),
-                "created_at": r.get("created_at"),
-                "pipeline_version": r.get("pipeline_version"),
-                "score": r.get("score"),
+                "id": row.get("id"),
+                "content": row.get("content"),
+                "summary": row.get("summary"),
+                "chunk_title": row.get("chunk_title"),
+                "doc_title": row.get("doc_title"),
+                "source": row.get("source"),
+                "page": row.get("page"),
+                "total_pages": row.get("total_pages"),
+                "created_at": row.get("created_at"),
+                "pipeline_version": row.get("pipeline_version"),
+                "chunk_score": row.get("score"),
                 "bm25_score": 0.0,
-                "vector_score": float(r.get("vector_score", 0.0)),
+                "vector_score": float(row.get("vector_score", 0.0)),
             })
         return out
 
@@ -319,23 +320,26 @@ class ChunkingUseCase:
         bm25_w = float(weights.get("bm25", 0.4))
         vec_w = float(weights.get("vector", 0.6))
 
-        for r in bm25:
-            index[r["id"]] = {
-                **r,
-                "score": r["bm25_score"] * bm25_w,
+        for row in bm25:
+            index[row["id"]] = {
+                **row,
+                "chunk_score": float(row["chunk_score"]) if row.get("chunk_score") is not None else 0.0,
+                "bm25_score": float(row["bm25_score"]) if row.get("bm25_score") is not None else 0.0,
+                "vector_score": float(row.get("vector_score", 0.0)) if row.get("vector_score") is not None else 0.0,
             }
 
-        for r in vector:
-            doc_id = r["id"]
-            vec_score = r["vector_score"]
+        for row in vector:
+            doc_id = row["id"]
+            vec_score = float(row["vector_score"]) if row.get("vector_score") is not None else 0.0
 
             if doc_id in index:
                 index[doc_id]["vector_score"] = vec_score
-                index[doc_id]["score"] += vec_score * vec_w
             else:
                 index[doc_id] = {
-                    **r,
-                    "score": vec_score * vec_w,
+                    **row,
+                    "chunk_score": float(row["chunk_score"]) if row.get("chunk_score") is not None else 0.0,
+                    "bm25_score": float(row.get("bm25_score", 0.0)) if row.get("bm25_score") is not None else 0.0,
+                    "vector_score": vec_score,
                 }
 
         return index
