@@ -1,16 +1,12 @@
-# ---- Memory Transactions Queries ----
-
-# ---- EXTENSION (MUST BE FIRST) ----
-CREATE_EXTENSION = """
-CREATE EXTENSION IF NOT EXISTS vector;
-"""
+# ---- Transactions Queries ----
 
 # ---- TABLE ----
 CREATE_TABLE = """
-CREATE TABLE IF NOT EXISTS memory_transactions (
+CREATE TABLE IF NOT EXISTS transactions_table (
     id BIGSERIAL PRIMARY KEY,
 
     user_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
 
     product TEXT,
     category TEXT,
@@ -28,26 +24,33 @@ CREATE TABLE IF NOT EXISTS memory_transactions (
 );
 """
 
-# ---- INDEX ----
-CREATE_INDEX = """
-CREATE INDEX IF NOT EXISTS idx_memory_tx_user_time
-ON memory_transactions(user_id, created_at DESC);
+# ---- INDEXES ----
+CREATE_USER_TIME_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_transactions_user_time
+ON transactions_table(user_id, created_at DESC);
+"""
 
-CREATE INDEX IF NOT EXISTS idx_memory_tx_category
-ON memory_transactions(category);
+CREATE_CATEGORY_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_transactions_category
+ON transactions_table(category);
+"""
 
-CREATE INDEX IF NOT EXISTS idx_memory_tx_product
-ON memory_transactions(product);
+CREATE_PRODUCT_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_transactions_product
+ON transactions_table(product);
+"""
 
-CREATE INDEX IF NOT EXISTS idx_memory_tx_embedding
-ON memory_transactions
+CREATE_VECTOR_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_transactions_embedding
+ON transactions_table
 USING hnsw (embedding vector_cosine_ops);
 """
 
-# ---- INSERT EVENT ----
+# ---- INSERT ----
 INSERT_EVENT = """
-INSERT INTO memory_transactions (
+INSERT INTO transactions_table (
     user_id,
+    session_id,
     product,
     category,
     amount,
@@ -57,27 +60,89 @@ INSERT INTO memory_transactions (
     raw_input,
     embedding
 )
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
 """
 
-# ---- GET USER EVENTS ----
-GET_USER_EVENTS = """
-SELECT *
-FROM memory_transactions
+# ---- BM25 (UNIFIED SEARCH SPACE) ----
+BM25_SEARCH = """
+WITH docs AS (
+    SELECT
+        id,
+        user_id,
+        session_id,
+        product,
+        category,
+        amount,
+        quantity,
+        currency,
+        note,
+        raw_input,
+        created_at,
+
+        (
+            setweight(to_tsvector('simple', coalesce(product,'')), 'A') ||
+            setweight(to_tsvector('simple', coalesce(category,'')), 'A') ||
+            setweight(to_tsvector('simple', coalesce(note,'')), 'B') ||
+            setweight(to_tsvector('simple', coalesce(raw_input,'')), 'B')
+        ) AS tsv
+    FROM transactions_table
+    WHERE user_id = %s AND session_id = %s
+)
+SELECT
+    *,
+    ts_rank_cd(
+        tsv,
+        plainto_tsquery('simple', %s)
+    ) AS bm25_score
+FROM docs
+WHERE tsv @@ plainto_tsquery('simple', %s)
+ORDER BY bm25_score DESC
+LIMIT %s;
+"""
+
+# ---- VECTOR SEARCH (UNIFIED EMBEDDING SPACE) ----
+VECTOR_SEARCH = """
+SELECT
+    id,
+    user_id,
+        session_id,
+    product,
+    category,
+    amount,
+    quantity,
+    currency,
+    note,
+    raw_input,
+    created_at,
+
+    1 - (embedding <=> %s::vector) AS vector_score
+
+FROM transactions_table
 WHERE user_id = %s
-ORDER BY created_at DESC;
-"""
+    AND session_id = %s
+    AND embedding IS NOT NULL
 
-# ---- GET BY CATEGORY ----
-GET_BY_CATEGORY = """
-SELECT *
-FROM memory_transactions
-WHERE user_id = %s AND category = %s
-ORDER BY created_at DESC;
+ORDER BY embedding <=> %s::vector
+LIMIT %s;
 """
 
 # ---- COUNT ----
 COUNT_ROWS = """
 SELECT COUNT(*) AS total
-FROM memory_transactions;
+FROM transactions_table;
+"""
+
+# ---- HEALTH CHECK ----
+HEALTH_CHECK = """
+SELECT to_regclass('public.transactions_table');
+"""
+
+# ---- DELETE ALL ----
+DELETE_ALL = """
+DELETE FROM transactions_table;
+"""
+
+# ---- DROP TABLE ----
+DROP_TABLE = """
+DROP TABLE IF EXISTS transactions_table;
 """
