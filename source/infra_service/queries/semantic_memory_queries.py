@@ -1,6 +1,3 @@
-# ---- Memory Queries (Unified Minimal Memory Table) ----
-
-
 # ---- TABLE ----
 CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS semantic_memory (
@@ -24,7 +21,7 @@ ON semantic_memory(user_id, created_at DESC);
 """
 
 
-# ---- INSERT MESSAGE ----
+# ---- INSERT ----
 INSERT_MESSAGE = """
 INSERT INTO semantic_memory (
     user_id,
@@ -36,7 +33,7 @@ VALUES (%s, %s, %s, %s);
 """
 
 
-# ---- GET USER HISTORY ----
+# ---- HISTORY ----
 GET_USER_HISTORY = """
 SELECT *
 FROM semantic_memory
@@ -46,7 +43,7 @@ LIMIT 50;
 """
 
 
-# ---- GET STM (RECENT CONTEXT) ----
+# ---- STM ----
 GET_STM = """
 SELECT *
 FROM semantic_memory
@@ -55,11 +52,31 @@ ORDER BY created_at DESC
 LIMIT %s;
 """
 
+
 # ---- COUNT ----
 COUNT_ROWS = """
 SELECT COUNT(*) AS total
 FROM semantic_memory;
 """
+
+
+# ---- HEALTH CHECK ----
+HEALTH_CHECK = """
+SELECT to_regclass('public.semantic_memory');
+"""
+
+
+# ---- DELETE ALL ----
+DELETE_ALL = """
+DELETE FROM semantic_memory;
+"""
+
+
+# ---- DROP TABLE ----
+DROP_TABLE = """
+DROP TABLE IF EXISTS semantic_memory;
+"""
+
 
 # ---- BM25 SEARCH ----
 BM25_SEARCH = """
