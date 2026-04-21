@@ -109,39 +109,7 @@ async def upsert(
     except Exception:
         logger.exception("[UserFacts Routes] upsert failed")
         raise InternalServerException("Upsert user facts failed")
-
-
-# ---- Update ----
-@router.patch("/update/{user_id}", response_model=UpdateUserFactsResponse)
-async def update(
-    user_id: str,
-    body: UpdateUserFactsRequest,
-    use_case=Depends(get_user_facts_use_case),
-):
-    if not body.data:
-        raise ValidationException("data is required")
-
-    try:
-        d = body.data.model_dump(exclude_unset=True)
-
-        payload = (
-            d.get("income"),
-            d.get("currency"),
-            d.get("rent"),
-            d.get("food_expense"),
-            d.get("fixed_expenses"),
-            d.get("disposable_income"),
-            user_id,
-        )
-
-        await use_case.update(payload)
-
-        return UpdateUserFactsResponse(message="User facts updated")
-
-    except Exception:
-        logger.exception("[UserFacts Routes] update failed")
-        raise InternalServerException("Update user facts failed")
-
+    
 
 # ---- Get ----
 @router.post("/get", response_model=GetUserFactsResponse)
@@ -204,6 +172,36 @@ async def count_user(
         logger.exception("[UserFacts Routes] count_user failed")
         raise InternalServerException("Count user failed")
 
+# ---- Update ----
+@router.patch("/update/{user_id}", response_model=UpdateUserFactsResponse)
+async def update(
+    user_id: str,
+    body: UpdateUserFactsRequest,
+    use_case=Depends(get_user_facts_use_case),
+):
+    if not body.data:
+        raise ValidationException("data is required")
+
+    try:
+        d = body.data.model_dump(exclude_unset=True)
+
+        payload = (
+            d.get("income"),
+            d.get("currency"),
+            d.get("rent"),
+            d.get("food_expense"),
+            d.get("fixed_expenses"),
+            d.get("disposable_income"),
+            user_id,
+        )
+
+        await use_case.update(payload)
+
+        return UpdateUserFactsResponse(message="User facts updated")
+
+    except Exception:
+        logger.exception("[UserFacts Routes] update failed")
+        raise InternalServerException("Update user facts failed")
 
 # ---- Delete All ----
 @router.delete("/delete_all", response_model=DeleteAllResponse)
