@@ -219,8 +219,7 @@ class ChunkingUseCase:
 
             bm25 = self._normalize_bm25(bm25)
             vector = self._normalize_vector(vector)
-            print(f"\n\n=====> BM25: {bm25} <=====\n\n")
-            print(f"\n\n=====> Vector: {vector} <=====\n\n")
+
             merged = self._merge(bm25, vector, weights)
 
             results = sorted(
