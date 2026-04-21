@@ -137,6 +137,7 @@ SELECT
     total_pages,
     created_at,
     pipeline_version,
+    score,
     distance,
     1 / (1 + distance) AS vector_score
 FROM (
@@ -151,6 +152,7 @@ FROM (
         total_pages,
         created_at,
         pipeline_version,
+        score,
         embedding <=> %s::vector AS distance
     FROM chunks_table
     WHERE embedding IS NOT NULL
