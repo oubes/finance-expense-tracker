@@ -11,6 +11,7 @@ def _random_embedding(dim: int = 1024):
 # ---- BASE ----
 class MemoryBase(BaseModel):
     user_id: str
+    session_id: str
     role: str
     content: str
 
@@ -23,17 +24,20 @@ class AddMessageRequest(MemoryBase):
 # ---- HISTORY ----
 class HistoryRequest(BaseModel):
     user_id: str
+    session_id: str
 
 
 # ---- STM ----
 class STMRequest(BaseModel):
     user_id: str
+    session_id: str
     limit: int = 10
 
 
 # ---- BM25 ----
 class BM25SearchRequest(BaseModel):
     user_id: str
+    session_id: str
     query: str
     limit: int = 10
 
@@ -41,6 +45,7 @@ class BM25SearchRequest(BaseModel):
 # ---- VECTOR ----
 class VectorSearchRequest(BaseModel):
     user_id: str
+    session_id: str
     embedding: list[float] = Field(default_factory=_random_embedding)
     limit: int = 10
 
@@ -48,6 +53,7 @@ class VectorSearchRequest(BaseModel):
 # ---- HYBRID ----
 class HybridSearchRequest(BaseModel):
     user_id: str
+    session_id: str
     query: str
     embedding: list[float] = Field(default_factory=_random_embedding)
     limit: int = 10

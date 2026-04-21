@@ -19,14 +19,28 @@ class SemanticMemoryUseCase:
         logger.info("[Semantic Memory Use Case] initializing...")
 
         try:
-            await self.db.execute(self.q.CREATE_TABLE)
-            await self.db.execute(self.q.CREATE_INDEX)
-            await self.db.commit()
-            return True
+            table_exists = await self.db.execute_one(
+                self.q.HEALTH_CHECK
+            )
 
-        except Exception:
-            logger.exception("[Semantic Memory Use Case] init failed")
+            if table_exists and table_exists.get("to_regclass"):
+                logger.info("[Semantic Memory Use Case] semantic_memory already initialized")
+                return True
+
+
+            async with self.db:
+                await self.db.execute(self.q.CREATE_TABLE)
+                await self.db.execute(self.q.CREATE_VECTOR_INDEX_SQL)
+                await self.db.execute(self.q.CREATE_FTS_INDEX_SQL)
+
+            await self.db.commit()
+
+            logger.info("[Semantic Memory Use Case] init success")
             return False
+
+        except Exception as e:
+            logger.exception("[Semantic Memory Use Case] init failed")
+            raise RuntimeError("Failed to initialize semantic_memory") from e
 
     # ---- HEALTH CHECK ----
     async def health(self) -> bool:
@@ -36,52 +50,77 @@ class SemanticMemoryUseCase:
             row = await self.db.execute_one(self.q.HEALTH_CHECK)
             return bool(row and row.get("to_regclass"))
 
-        except Exception:
+        except Exception as e:
             logger.exception("[Semantic Memory Use Case] health failed")
-            return False
+            raise RuntimeError("Semantic memory health check failed") from e
 
     # ---- ADD MESSAGE ----
-    async def add_message(self, user_id: str, role: str, content: str, embedding=None) -> bool:
+    async def add_message(
+        self,
+        user_id: str,
+        session_id: str,
+        role: str,
+        content: str,
+        embedding=None
+    ) -> bool:
+        logger.info("[Semantic Memory Use Case] add message start")
+
         try:
-            if not user_id or not content:
+            if not user_id or not session_id or not content:
                 raise ValueError("invalid input")
 
-            await self.db.execute(
-                self.q.INSERT_MESSAGE,
-                (user_id, role, content, embedding),
-            )
+            async with self.db:
+                await self.db.execute(
+                    self.q.INSERT_MESSAGE,
+                    (user_id, session_id, role, content, embedding),
+                )
+
             await self.db.commit()
             return True
 
-        except Exception:
+        except Exception as e:
             logger.exception("[Semantic Memory Use Case] add_message failed")
-            return False
+            raise RuntimeError("Failed to insert message") from e
 
     # ---- DELETE ALL ----
-    async def delete_all(self) -> bool:
+    async def delete_all(self) -> None:
         logger.info("[Semantic Memory Use Case] delete all start")
 
         try:
-            await self.db.execute(self.q.DELETE_ALL)
-            await self.db.commit()
-            return True
+            async with self.db:
+                await self.db.execute(self.q.DELETE_ALL)
 
-        except Exception:
+            await self.db.commit()
+            logger.info("[Semantic Memory Use Case] delete all success")
+
+        except Exception as e:
             logger.exception("[Semantic Memory Use Case] delete_all failed")
-            return False
+            raise RuntimeError("Failed to delete memory") from e
 
     # ---- DROP TABLE ----
     async def drop_table(self) -> bool:
         logger.info("[Semantic Memory Use Case] drop table start")
 
         try:
-            await self.db.execute(self.q.DROP_TABLE)
+            table_exists = await self.db.execute_one(
+                self.q.HEALTH_CHECK
+            )
+
+            if not table_exists or not table_exists.get("to_regclass"):
+                logger.info("[Semantic Memory Use Case] table does not exist")
+                return False
+
+            async with self.db:
+                await self.db.execute(self.q.DROP_TABLE)
+
             await self.db.commit()
+
+            logger.info("[Semantic Memory Use Case] drop table success")
             return True
 
-        except Exception:
+        except Exception as e:
             logger.exception("[Semantic Memory Use Case] drop_table failed")
-            return False
+            raise RuntimeError("Failed to drop semantic_memory table") from e
 
     # ---- COUNT ----
     async def count(self) -> int:
@@ -91,88 +130,99 @@ class SemanticMemoryUseCase:
             row = await self.db.execute_one(self.q.COUNT_ROWS)
             return row["total"] if row else 0
 
-        except Exception:
+        except Exception as e:
             logger.exception("[Semantic Memory Use Case] count failed")
-            return 0
+            raise RuntimeError("Failed to count memory rows") from e
 
     # ---- HISTORY ----
-    async def get_user_history(self, user_id: str):
+    async def get_user_history(self, user_id: str, session_id: str):
+        logger.info("[Semantic Memory Use Case] history start")
+
         try:
-            if not user_id:
-                raise ValueError("invalid user_id")
+            if not user_id or not session_id:
+                raise ValueError("invalid input")
 
             return await self.db.execute(
                 self.q.GET_USER_HISTORY,
-                (user_id,),
+                (user_id, session_id),
                 fetch=True,
             )
 
-        except Exception:
+        except Exception as e:
             logger.exception("[Semantic Memory Use Case] history failed")
-            return []
+            raise RuntimeError("History fetch failed") from e
 
     # ---- STM ----
-    async def get_stm(self, user_id: str, limit: int = 10):
+    async def get_stm(self, user_id: str, session_id: str, limit: int = 10):
+        logger.info("[Semantic Memory Use Case] stm start")
+
         try:
             return await self.db.execute(
                 self.q.GET_STM,
-                (user_id, limit),
+                (user_id, session_id, limit),
                 fetch=True,
             )
 
-        except Exception:
+        except Exception as e:
             logger.exception("[Semantic Memory Use Case] stm failed")
-            return []
+            raise RuntimeError("STM fetch failed") from e
 
     # ---- BM25 SEARCH ----
-    async def bm25_search(self, user_id: str, query: str, limit: int = 10):
+    async def bm25_search(self, user_id: str, session_id: str, query: str, limit: int = 10):
+        logger.info("[Semantic Memory Use Case] bm25 search start")
+
         try:
-            if not user_id or not query:
+            if not user_id or not session_id or not query:
                 raise ValueError("invalid bm25 input")
 
             return await self.db.execute(
                 self.q.BM25_SEARCH,
-                (user_id, query, query, limit),
+                (user_id, session_id, query, query, limit),
                 fetch=True,
             )
 
-        except Exception:
+        except Exception as e:
             logger.exception("[Semantic Memory Use Case] bm25 failed")
-            return []
+            raise RuntimeError("BM25 search failed") from e
 
     # ---- VECTOR SEARCH ----
-    async def vector_search(self, user_id: str, embedding, limit: int = 10):
+    async def vector_search(self, user_id: str, session_id: str, embedding, limit: int = 10):
+        logger.info("[Semantic Memory Use Case] vector search start")
+
         try:
             if embedding is None:
                 raise ValueError("embedding required")
 
             return await self.db.execute(
                 self.q.VECTOR_SEARCH,
-                (embedding, user_id, embedding, limit),
+                (embedding, user_id, session_id, embedding, limit),
                 fetch=True,
             )
 
-        except Exception:
+        except Exception as e:
             logger.exception("[Semantic Memory Use Case] vector failed")
-            return []
+            raise RuntimeError("Vector search failed") from e
 
     # ---- HYBRID SEARCH ----
     async def hybrid_search(
         self,
         user_id: str,
+        session_id: str,
         query: str,
         embedding,
         limit: int = 10,
         weights: dict = {"bm25": 0.4, "vector": 0.6},
     ):
+        logger.info("[Semantic Memory Use Case] hybrid search start")
+
         try:
-            if not user_id or not query or embedding is None:
+            if not user_id or not session_id or not query or embedding is None:
                 raise ValueError("invalid hybrid input")
 
             weights = weights or {"bm25": 0.4, "vector": 0.6}
 
-            bm25_task = self.bm25_search(user_id, query, limit * 2)
-            vector_task = self.vector_search(user_id, embedding, limit * 2)
+            bm25_task = self.bm25_search(user_id, session_id, query, limit * 2)
+            vector_task = self.vector_search(user_id, session_id, embedding, limit * 2)
 
             bm25, vector = await asyncio.gather(bm25_task, vector_task)
 
@@ -189,9 +239,9 @@ class SemanticMemoryUseCase:
 
             return results[:limit]
 
-        except Exception:
+        except Exception as e:
             logger.exception("[Semantic Memory Use Case] hybrid failed")
-            return []
+            raise RuntimeError("Hybrid search failed") from e
 
     # ---- NORMALIZE BM25 ----
     def _normalize_bm25(self, rows):
@@ -202,22 +252,25 @@ class SemanticMemoryUseCase:
                 out.append({
                     "id": r[0],
                     "user_id": r[1],
-                    "role": r[2],
-                    "content": r[3],
-                    "created_at": r[4],
-                    "bm25_score": float(r[5]) if len(r) > 5 else 0.0,
+                    "session_id": r[2],
+                    "role": r[3],
+                    "content": r[4],
+                    "created_at": r[5],
+                    "bm25_score": float(r[6]) if len(r) > 6 else 0.0,
                     "vector_score": 0.0,
                 })
-            else:
-                out.append({
-                    "id": r.get("id"),
-                    "user_id": r.get("user_id"),
-                    "role": r.get("role"),
-                    "content": r.get("content"),
-                    "created_at": r.get("created_at"),
-                    "bm25_score": float(r.get("bm25_score", 0.0)),
-                    "vector_score": 0.0,
-                })
+                continue
+
+            out.append({
+                "id": r.get("id"),
+                "user_id": r.get("user_id"),
+                "session_id": r.get("session_id"),
+                "role": r.get("role"),
+                "content": r.get("content"),
+                "created_at": r.get("created_at"),
+                "bm25_score": float(r.get("bm25_score", 0.0)),
+                "vector_score": 0.0,
+            })
 
         return out
 
@@ -230,22 +283,25 @@ class SemanticMemoryUseCase:
                 out.append({
                     "id": r[0],
                     "user_id": r[1],
-                    "role": r[2],
-                    "content": r[3],
-                    "created_at": r[4],
+                    "session_id": r[2],
+                    "role": r[3],
+                    "content": r[4],
+                    "created_at": r[5],
                     "bm25_score": 0.0,
-                    "vector_score": float(r[5]) if len(r) > 5 else 0.0,
+                    "vector_score": float(r[6]) if len(r) > 6 else 0.0,
                 })
-            else:
-                out.append({
-                    "id": r.get("id"),
-                    "user_id": r.get("user_id"),
-                    "role": r.get("role"),
-                    "content": r.get("content"),
-                    "created_at": r.get("created_at"),
-                    "bm25_score": 0.0,
-                    "vector_score": float(r.get("vector_score", 0.0)),
-                })
+                continue
+
+            out.append({
+                "id": r.get("id"),
+                "user_id": r.get("user_id"),
+                "session_id": r.get("session_id"),
+                "role": r.get("role"),
+                "content": r.get("content"),
+                "created_at": r.get("created_at"),
+                "bm25_score": 0.0,
+                "vector_score": float(r.get("vector_score", 0.0)),
+            })
 
         return out
 
@@ -260,7 +316,6 @@ class SemanticMemoryUseCase:
             index[r["id"]] = {
                 **r,
                 "score": r["bm25_score"] * bm25_w,
-                "vector_score": 0.0,
             }
 
         for r in vector:
