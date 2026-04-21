@@ -54,12 +54,13 @@ async def init_chunking_table(
 ):
     try:
         already_initialized = await chunking_use_case.init()
-
+        
         if already_initialized:
             return InitTableResponse(
                 message="Chunks_table already initialized",
                 status=status.HTTP_200_OK,
             )
+        
 
         return InitTableResponse(
             message="Chunks_table initialized",
@@ -216,8 +217,12 @@ async def drop_chunks_table(
     chunking_use_case=Depends(get_chunking_use_case),
 ):
     try:
-        await chunking_use_case.drop_table()
-        return DropTableResponse(message="Chunks_table dropped")
+        result = await chunking_use_case.drop_table()
+
+        if result:
+            return DropTableResponse(message="chunks_table dropped successfully")
+
+        return DropTableResponse(message="chunks_table does not exist")
 
     except Exception:
         logger.exception("[Chunking Routes] drop failed")

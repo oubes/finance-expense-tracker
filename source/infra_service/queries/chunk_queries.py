@@ -23,19 +23,31 @@ CREATE TABLE IF NOT EXISTS chunks_table (
 
     score FLOAT
 );
+"""
 
--- ---- Vector Index (HNSW) ----
+
+# ---- Vector Index (HNSW) ----
+CREATE_VECTOR_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS idx_chunks_table_vector_hnsw
 ON chunks_table
 USING hnsw (embedding vector_cosine_ops);
+"""
 
--- ---- Full Text Index (BM25) ----
+
+# ---- Full Text Index (BM25 FIXED) ----
+CREATE_FTS_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS idx_chunks_table_fts
 ON chunks_table
 USING GIN (
-    setweight(to_tsvector('simple', coalesce(content,'')), 'A') ||
-    setweight(to_tsvector('simple', coalesce(summary,'')), 'B')
+    to_tsvector('simple', coalesce(content,'') || ' ' || coalesce(summary,''))
 );
+"""
+
+
+# ---- Created At Index (performance for stm/history) ----
+CREATE_CREATED_AT_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_chunks_table_created_at
+ON chunks_table (created_at DESC);
 """
 
 
@@ -77,9 +89,12 @@ DO UPDATE SET
 """
 
 
-# ---- BM25 SEARCH ----
+# ---- BM25 SEARCH (uses generated column) ----
 BM25_SEARCH_SQL = """
-WITH docs AS (
+WITH q AS (
+    SELECT plainto_tsquery('simple', %s) AS query
+),
+docs AS (
     SELECT
         id,
         content,
@@ -92,10 +107,7 @@ WITH docs AS (
         created_at,
         pipeline_version,
         score,
-        (
-            setweight(to_tsvector('simple', coalesce(content,'')), 'A') ||
-            setweight(to_tsvector('simple', coalesce(summary,'')), 'B')
-        ) AS tsv
+        fts
     FROM chunks_table
 )
 SELECT
@@ -110,15 +122,9 @@ SELECT
     created_at,
     pipeline_version,
     score,
-    COALESCE(
-        ts_rank_cd(
-            tsv,
-            plainto_tsquery('simple', %s)
-        ),
-        0
-    ) AS bm25_score
-FROM docs
-WHERE tsv @@ plainto_tsquery('simple', %s)
+    COALESCE(ts_rank_cd(fts, q.query), 0) AS bm25_score
+FROM docs, q
+WHERE fts @@ q.query
 ORDER BY bm25_score DESC
 LIMIT %s;
 """
@@ -138,25 +144,9 @@ SELECT
     created_at,
     pipeline_version,
     score,
-    distance,
-    1 / (1 + distance) AS vector_score
-FROM (
-    SELECT
-        id,
-        content,
-        summary,
-        chunk_title,
-        doc_title,
-        source,
-        page,
-        total_pages,
-        created_at,
-        pipeline_version,
-        score,
-        embedding <=> %s::vector AS distance
-    FROM chunks_table
-    WHERE embedding IS NOT NULL
-) t
+    embedding <=> %s::vector AS distance
+FROM chunks_table
+WHERE embedding IS NOT NULL
 ORDER BY distance ASC
 LIMIT %s;
 """
@@ -166,8 +156,8 @@ LIMIT %s;
 DELETE_CHUNKS_SQL = "DELETE FROM chunks_table;"
 
 
-# ---- Drop ----
-DROP_CHUNKS_TABLE_SQL = "DROP TABLE chunks_table;"
+# ---- Drop (SAFE) ----
+DROP_CHUNKS_TABLE_SQL = "DROP TABLE IF EXISTS chunks_table;"
 
 
 # ---- Count ----

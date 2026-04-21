@@ -54,8 +54,13 @@ class ChunkingUseCase:
                 dim=self.settings.embeddings.dimension
             )
 
+
             async with self.db:
                 await self.db.execute(sql)
+                # Create indexes after table creation
+                await self.db.execute(self.q.CREATE_VECTOR_INDEX_SQL)
+                await self.db.execute(self.q.CREATE_FTS_INDEX_SQL)
+                await self.db.execute(self.q.CREATE_CREATED_AT_INDEX_SQL)
 
             logger.info("[Chunking Use Case] init success")
             return False
@@ -126,14 +131,23 @@ class ChunkingUseCase:
             ) from e
 
     # ---- DROP TABLE ----
-    async def drop_table(self) -> None:
+    async def drop_table(self) -> bool:
         logger.info("[Chunking Use Case] drop table start")
 
         try:
+            table_exists = await self.db.execute_one(
+                self.q.TABLE_EXISTS_SQL
+            )
+
+            if not table_exists or not table_exists.get("to_regclass"):
+                logger.info("[Chunking Use Case] chunks_table does not exist")
+                return False
+
             async with self.db:
                 await self.db.execute(self.q.DROP_CHUNKS_TABLE_SQL)
 
             logger.info("[Chunking Use Case] drop table success")
+            return True
 
         except Exception as e:
             logger.exception("[Chunking Use Case] drop_table failed")
