@@ -10,8 +10,9 @@ def _random_embedding(dim: int = 1024) -> list[float]:
     return np.round(np.random.rand(dim), 4).tolist()
 
 
-# ---- Chunk Models ----
+# -------------------- BASE MODELS --------------------
 
+# ---- Base Chunk Structure ----
 class ChunkBase(BaseModel):
     content: str
     summary: str
@@ -27,6 +28,7 @@ class ChunkBase(BaseModel):
     vector_score: float = 0.0
 
 
+# ---- Input Payload (Write) ----
 class ChunkIn(ChunkBase):
     embedding: list[float] = Field(
         default_factory=_random_embedding,
@@ -36,21 +38,25 @@ class ChunkIn(ChunkBase):
     )
 
 
+# ---- Output Payload (Read) ----
 class ChunkOut(ChunkBase):
     id: UUID
 
 
+# ---- Batch Insert Payload ----
 class ChunkBatchIn(BaseModel):
     chunks: list[ChunkIn]
 
 
-# ---- SEARCH MODELS ----
+# -------------------- SEARCH MODELS --------------------
 
+# ---- BM25 Search Input ----
 class BM25SearchRequest(BaseModel):
     query: str = Field(default="python")
     limit: int = 10
 
 
+# ---- Vector Search Input ----
 class VectorSearchRequest(BaseModel):
     embedding: list[float] = Field(
         default_factory=_random_embedding,
@@ -61,6 +67,7 @@ class VectorSearchRequest(BaseModel):
     limit: int = 10
 
 
+# ---- Hybrid Search Input ----
 class HybridSearchRequest(BaseModel):
     query: str = Field(default="python")
     embedding: list[float] = Field(
@@ -75,67 +82,85 @@ class HybridSearchRequest(BaseModel):
     )
 
 
+# ---- Search Output ----
 class SearchResponse(BaseModel):
     query: str | None = None
     count: int
     results: list[ChunkOut]
 
 
+# -------------------- GET OPERATIONS MODELS --------------------
+
+# ---- Count Result ----
 class CountResponse(BaseModel):
     count: int
     message: str
 
 
-# ---- SYSTEM MODELS ----
-
+# ---- Health Status ----
 class HealthCheckResponse(BaseModel):
     message: str
 
 
+# ---- Init Result ----
 class InitTableResponse(BaseModel):
     message: str
     status: int
 
 
+# ---- Single Chunk Fetch ----
+class GetChunkByIdResponse(BaseModel):
+    result: ChunkOut | None
+
+
+# -------------------- POST OPERATIONS MODELS --------------------
+
+# ---- Bulk Insert Request ----
 class InsertChunksRequest(BaseModel):
     chunks: list[ChunkIn]
 
 
+# ---- Bulk Insert Response ----
 class InsertChunksResponse(BaseModel):
     message: str
     count: int
 
 
-class DeleteChunksResponse(BaseModel):
-    message: str
-
-
-class DropTableResponse(BaseModel):
-    message: str
-
-
-# ---- CRUD MODELS (NEW) ----
-
-class GetChunkByIdResponse(BaseModel):
-    result: ChunkOut | None
-
-
+# ---- Page-Based Query Request ----
 class GetChunksByPagesRequest(BaseModel):
     pages: list[int]
 
 
+# ---- Page-Based Query Response ----
 class GetChunksByPagesResponse(BaseModel):
     count: int
     results: list[ChunkOut]
 
 
+# -------------------- PATCH OPERATIONS MODELS --------------------
+
+# ---- Update Payload ----
 class UpdateChunkRequest(BaseModel):
     data: ChunkIn
 
 
+# ---- Update Result ----
 class UpdateChunkResponse(BaseModel):
     message: str
 
 
+# -------------------- DELETE OPERATIONS MODELS --------------------
+
+# ---- Single Delete Result ----
 class DeleteChunkResponse(BaseModel):
     success: bool
+
+
+# ---- Bulk Delete Result ----
+class DeleteChunksResponse(BaseModel):
+    message: str
+
+
+# ---- Drop Table Result ----
+class DropTableResponse(BaseModel):
+    message: str
