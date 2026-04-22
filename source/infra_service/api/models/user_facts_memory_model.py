@@ -71,33 +71,14 @@ class UpdateUserFactsResponse(BaseModel):
 
 
 # ---- Get ----
-class GetUserFactsRequest(BaseModel):
-    user_id: str
-
-
 class GetUserFactsResponse(BaseModel):
     result: UserFactsOut | None
 
 
 # ---- Count ----
-class CountRequest(BaseModel):
-    pass
-
-
 class CountResponse(BaseModel):
     count: int
     message: str
-
-
-# ---- Count Per User ----
-class CountUserRequest(BaseModel):
-    user_id: str
-
-
-class CountUserResponse(BaseModel):
-    count: int
-    message: str
-
 
 # ---- Delete All ----
 class DeleteAllRequest(BaseModel):

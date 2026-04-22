@@ -124,28 +124,30 @@ class UserFactsUseCase:
             logger.exception("[User Facts Use Case] count failed")
             raise RuntimeError("User facts count failed") from e
 
-    # ---- COUNT USER ----
-    async def count_user(self, user_id: str) -> int:
-        logger.info("[User Facts Use Case] count_user start")
+    # ---- DELETE USER ----
+    async def delete_user(self, user_id: str) -> bool:
+        logger.info("[User Facts Use Case] delete_user start")
+
+        if not user_id:
+            raise ValueError("user_id is required")
 
         try:
-            row = await self.db.execute_one(
-                self.q.COUNT_BY_USER_SQL,
-                (user_id,)
-            )
+            async with self.db:
+                result = await self.db.execute(
+                    self.q.DELETE_USER_SQL,
+                    (user_id,)
+                )
 
-            if not row:
-                return 0
+            # depending on driver behavior (rowcount or None)
+            deleted = getattr(result, "rowcount", None)
 
-            if isinstance(row, dict):
-                return list(row.values())[0]
-
-            return row[0]
+            logger.info("[User Facts Use Case] delete_user success")
+            return bool(deleted) if deleted is not None else True
 
         except Exception as e:
-            logger.exception("[User Facts Use Case] count_user failed")
-            raise RuntimeError("User facts count_user failed") from e
-
+            logger.exception("[User Facts Use Case] delete_user failed")
+            raise RuntimeError("User facts delete_user failed") from e
+    
     # ---- DELETE ALL ----
     async def delete_all(self) -> None:
         logger.info("[User Facts Use Case] delete_all start")

@@ -8,12 +8,8 @@ from source.infra_service.api.models.user_facts_memory_model import (
     UpsertUserFactsResponse,
     UpdateUserFactsRequest,
     UpdateUserFactsResponse,
-    GetUserFactsRequest,
     GetUserFactsResponse,
-    CountRequest,
     CountResponse,
-    CountUserRequest,
-    CountUserResponse,
     DeleteAllRequest,
     DeleteAllResponse,
     DropTableRequest,
@@ -90,27 +86,6 @@ async def count(
     except Exception:
         logger.exception("[UserFacts Routes] count failed")
         raise InternalServerException("Count failed")
-
-# ---- Count Per User ----
-@router.get("/count/{user_id}", response_model=CountUserResponse)
-async def count_user(
-    body: CountUserRequest,
-    use_case=Depends(get_user_facts_use_case),
-):
-    if not body.user_id:
-        raise ValidationException("user_id required")
-
-    try:
-        count = await use_case.count_user(body.user_id)
-
-        return CountUserResponse(
-            count=count,
-            message=f"User rows: {count}",
-        )
-
-    except Exception:
-        logger.exception("[UserFacts Routes] count_user failed")
-        raise InternalServerException("Count user failed")
 
 # ---- Get ----
 @router.get("/get/{user_id}", response_model=GetUserFactsResponse)
@@ -197,6 +172,26 @@ async def update(
         logger.exception("[UserFacts Routes] update failed")
         raise InternalServerException("Update user facts failed")
 
+# ---- Delete User ----
+@router.delete("/delete/{user_id}", response_model=DeleteAllResponse)
+async def delete_user(
+    user_id: str,
+    use_case=Depends(get_user_facts_use_case),
+):
+    if not user_id:
+        raise ValidationException("user_id required")
+
+    try:
+        deleted = await use_case.delete_user(user_id)
+
+        if not deleted:
+            return DeleteAllResponse(message="User not found or already deleted")
+
+        return DeleteAllResponse(message=f"User {user_id} deleted")
+
+    except Exception:
+        logger.exception("[UserFacts Routes] delete_user failed")
+        raise InternalServerException("Delete user facts failed")
 # ---- Delete All ----
 @router.delete("/delete_all", response_model=DeleteAllResponse)
 async def delete_all(

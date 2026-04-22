@@ -75,6 +75,8 @@ FROM user_facts_table
 WHERE user_id = %s;
 """
 
+# ---- DELETE USER BY ID ----
+DELETE_USER_SQL = "DELETE FROM user_facts_table WHERE user_id = %s;"
 
 # ---- DELETE ----
 DELETE_ALL_SQL = "DELETE FROM user_facts_table;"
