@@ -4,9 +4,11 @@ from datetime import datetime
 import numpy as np
 from uuid import UUID
 
+
 # ---- Utility ----
 def _random_embedding(dim: int = 1024) -> list[float]:
     return np.round(np.random.rand(dim), 4).tolist()
+
 
 # ---- Chunk Models ----
 
@@ -24,6 +26,7 @@ class ChunkBase(BaseModel):
     bm25_score: float = 0.0
     vector_score: float = 0.0
 
+
 class ChunkIn(ChunkBase):
     embedding: list[float] = Field(
         default_factory=_random_embedding,
@@ -32,16 +35,21 @@ class ChunkIn(ChunkBase):
         examples=[_random_embedding()],
     )
 
+
 class ChunkOut(ChunkBase):
     id: UUID
+
 
 class ChunkBatchIn(BaseModel):
     chunks: list[ChunkIn]
 
-# ---- Search Request/Response Models ----
+
+# ---- SEARCH MODELS ----
+
 class BM25SearchRequest(BaseModel):
     query: str = Field(default="python")
     limit: int = 10
+
 
 class VectorSearchRequest(BaseModel):
     embedding: list[float] = Field(
@@ -51,6 +59,7 @@ class VectorSearchRequest(BaseModel):
         examples=[_random_embedding()],
     )
     limit: int = 10
+
 
 class HybridSearchRequest(BaseModel):
     query: str = Field(default="python")
@@ -65,32 +74,68 @@ class HybridSearchRequest(BaseModel):
         default_factory=lambda: {"bm25": 0.4, "vector": 0.6},
     )
 
+
 class SearchResponse(BaseModel):
     query: str | None = None
     count: int
     results: list[ChunkOut]
 
+
 class CountResponse(BaseModel):
     count: int
     message: str
 
-# ---- Route Request/Response Models ----
+
+# ---- SYSTEM MODELS ----
+
 class HealthCheckResponse(BaseModel):
     message: str
+
 
 class InitTableResponse(BaseModel):
     message: str
     status: int
 
-class DeleteChunksResponse(BaseModel):
-    message: str
-
-class DropTableResponse(BaseModel):
-    message: str
 
 class InsertChunksRequest(BaseModel):
     chunks: list[ChunkIn]
 
+
 class InsertChunksResponse(BaseModel):
     message: str
     count: int
+
+
+class DeleteChunksResponse(BaseModel):
+    message: str
+
+
+class DropTableResponse(BaseModel):
+    message: str
+
+
+# ---- CRUD MODELS (NEW) ----
+
+class GetChunkByIdResponse(BaseModel):
+    result: ChunkOut | None
+
+
+class GetChunksByPagesRequest(BaseModel):
+    pages: list[int]
+
+
+class GetChunksByPagesResponse(BaseModel):
+    count: int
+    results: list[ChunkOut]
+
+
+class UpdateChunkRequest(BaseModel):
+    data: ChunkIn
+
+
+class UpdateChunkResponse(BaseModel):
+    message: str
+
+
+class DeleteChunkResponse(BaseModel):
+    success: bool
