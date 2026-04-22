@@ -1,5 +1,6 @@
 # ---- Chunk Queries ----
 
+
 # ---- Create Table ----
 CREATE_CHUNKS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS chunks_table (
@@ -89,7 +90,7 @@ DO UPDATE SET
 """
 
 
-# ---- BM25 SEARCH (uses generated column) ----
+# ---- BM25 SEARCH ----
 BM25_SEARCH_SQL = """
 WITH q AS (
     SELECT plainto_tsquery('simple', %s) AS query
@@ -152,17 +153,81 @@ LIMIT %s;
 """
 
 
-# ---- Delete ----
+# ---- READ OPERATIONS ----
+
+GET_CHUNK_BY_ID_SQL = """
+SELECT
+    id,
+    content,
+    summary,
+    embedding,
+    chunk_title,
+    doc_title,
+    source,
+    page,
+    total_pages,
+    created_at,
+    pipeline_version,
+    score
+FROM chunks_table
+WHERE id = %s;
+"""
+
+
+GET_CHUNKS_BY_PAGES_SQL = """
+SELECT
+    id,
+    content,
+    summary,
+    chunk_title,
+    doc_title,
+    source,
+    page,
+    total_pages,
+    created_at,
+    pipeline_version,
+    score
+FROM chunks_table
+WHERE page = ANY(%s)
+ORDER BY page, id;
+"""
+
+
+# ---- UPDATE OPERATIONS ----
+UPDATE_CHUNK_SQL = """
+UPDATE chunks_table
+SET
+    content = %s,
+    summary = %s,
+    embedding = %s,
+    chunk_title = %s,
+    doc_title = %s,
+    source = %s,
+    page = %s,
+    total_pages = %s,
+    pipeline_version = %s,
+    score = %s
+WHERE id = %s;
+"""
+
+
+# ---- DELETE OPERATIONS ----
+
+DELETE_CHUNK_BY_ID_SQL = """
+DELETE FROM chunks_table
+WHERE id = %s;
+"""
+
+
 DELETE_CHUNKS_SQL = "DELETE FROM chunks_table;"
 
 
-# ---- Drop (SAFE) ----
-DROP_CHUNKS_TABLE_SQL = "DROP TABLE IF EXISTS chunks_table;"
+# ---- META OPERATIONS ----
 
-
-# ---- Count ----
 COUNT_CHUNKS_SQL = "SELECT COUNT(*) FROM chunks_table;"
 
 
-# ---- Health Check ----
+DROP_CHUNKS_TABLE_SQL = "DROP TABLE IF EXISTS chunks_table;"
+
+
 TABLE_EXISTS_SQL = "SELECT to_regclass('public.chunks_table');"

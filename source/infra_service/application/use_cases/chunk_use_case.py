@@ -39,6 +39,7 @@ class ChunkingUseCase:
         self.q = queries
         self.settings = settings
 
+
     # ---- INIT ----
     async def init(self) -> bool:
         logger.info("[Chunking Use Case] initializing...")
@@ -54,10 +55,8 @@ class ChunkingUseCase:
                 dim=self.settings.embeddings.dimension
             )
 
-
             async with self.db:
                 await self.db.execute(sql)
-                # Create indexes after table creation
                 await self.db.execute(self.q.CREATE_VECTOR_INDEX_SQL)
                 await self.db.execute(self.q.CREATE_FTS_INDEX_SQL)
                 await self.db.execute(self.q.CREATE_CREATED_AT_INDEX_SQL)
@@ -68,6 +67,7 @@ class ChunkingUseCase:
         except Exception as e:
             logger.exception("[Chunking Use Case] init failed")
             raise RuntimeError("Failed to initialize chunks_table") from e
+
 
     # ---- HEALTH CHECK ----
     async def health(self):
@@ -87,6 +87,27 @@ class ChunkingUseCase:
             raise RuntimeError(
                 "[Chunking Use Case] Chunks_table health check failed"
             ) from e
+
+
+    # ---- COUNT ----
+    async def count(self) -> int:
+        logger.info("[Chunking Use Case] count start")
+
+        try:
+            row = await self.db.execute_one(self.q.COUNT_CHUNKS_SQL)
+
+            if not row:
+                return 0
+
+            if isinstance(row, dict):
+                return list(row.values())[0]
+
+            return row[0]
+
+        except Exception as e:
+            logger.exception("[Chunking Use Case] count failed")
+            raise RuntimeError("Chunk count failed") from e
+
 
     # ---- UPSERT ----
     async def upsert(self, records: list[Any]) -> None:
@@ -114,7 +135,88 @@ class ChunkingUseCase:
                 "[Chunking Use Case] Chunks_table upsert failed"
             ) from e
 
-    # ---- DELETE ALL ----
+
+    # ---- READ OPERATIONS ----
+
+    async def get_chunk_by_id(self, chunk_id: str):
+        logger.info("[Chunking Use Case] get_chunk_by_id start")
+
+        try:
+            if not chunk_id:
+                raise ValueError("chunk_id required")
+
+            return await self.db.execute_one(
+                self.q.GET_CHUNK_BY_ID_SQL,
+                (chunk_id,)
+            )
+
+        except Exception:
+            logger.exception("[Chunking Use Case] get_chunk_by_id failed")
+            return None
+
+
+    async def get_chunks_by_pages(self, pages: list[int]):
+        logger.info("[Chunking Use Case] get_chunks_by_pages start")
+
+        try:
+            if not pages:
+                raise ValueError("pages required")
+
+            return await self.db.execute(
+                self.q.GET_CHUNKS_BY_PAGES_SQL,
+                (pages,),
+                fetch=True,
+            )
+
+        except Exception:
+            logger.exception("[Chunking Use Case] get_chunks_by_pages failed")
+            return []
+
+
+    # ---- UPDATE OPERATIONS ----
+
+    async def update_chunk(self, data: tuple) -> bool:
+        logger.info("[Chunking Use Case] update_chunk start")
+
+        try:
+            if not data:
+                raise ValueError("update data required")
+
+            async with self.db:
+                await self.db.execute(
+                    self.q.UPDATE_CHUNK_SQL,
+                    data
+                )
+
+            return True
+
+        except Exception:
+            logger.exception("[Chunking Use Case] update_chunk failed")
+            return False
+
+
+    # ---- DELETE OPERATIONS ----
+
+    async def delete_chunk_by_id(self, chunk_id: str) -> bool:
+        logger.info("[Chunking Use Case] delete_chunk_by_id start")
+
+        try:
+            if not chunk_id:
+                raise ValueError("chunk_id required")
+
+            async with self.db:
+                await self.db.execute(
+                    self.q.DELETE_CHUNK_BY_ID_SQL,
+                    (chunk_id,)
+                )
+
+            return True
+
+        except Exception:
+            logger.exception("[Chunking Use Case] delete_chunk_by_id failed")
+            return False
+
+
     async def delete_all(self) -> None:
         logger.info("[Chunking Use Case] delete all start")
 
@@ -130,7 +232,9 @@ class ChunkingUseCase:
                 "[Chunking Use Case] Chunks_table delete_all failed"
             ) from e
 
-    # ---- DROP TABLE ----
+
+    # ---- DROP OPERATIONS ----
+
     async def drop_table(self) -> bool:
         logger.info("[Chunking Use Case] drop table start")
 
@@ -155,26 +259,9 @@ class ChunkingUseCase:
                 "[Chunking Use Case] Chunks_table drop_table failed"
             ) from e
 
-    # ---- COUNT ----
-    async def count(self) -> int:
-        logger.info("[Chunking Use Case] count start")
 
-        try:
-            row = await self.db.execute_one(self.q.COUNT_CHUNKS_SQL)
+    # ---- SEARCH OPERATIONS ----
 
-            if not row:
-                return 0
-
-            if isinstance(row, dict):
-                return list(row.values())[0]
-
-            return row[0]
-
-        except Exception as e:
-            logger.exception("[Chunking Use Case] count failed")
-            raise RuntimeError("Chunk count failed") from e
-
-    # ---- BM25 SEARCH ----
     async def bm25_search(self, query: str, limit: int = 10):
         logger.info("[Chunking Use Case] bm25 search start")
 
@@ -192,19 +279,19 @@ class ChunkingUseCase:
             logger.exception("[Chunking Use Case] bm25_search failed")
             return []
 
-    # ---- VECTOR SEARCH ----
+
     async def vector_search(self, embedding, limit: int = 10):
         logger.info("[Chunking Use Case] vector search start")
+
         try:
             if embedding is None:
                 raise ValueError("embedding required")
 
-            # Ensure embedding is a string for pgvector
             if isinstance(embedding, list):
                 embedding_str = str(embedding)
             else:
                 embedding_str = embedding
-            
+
             return await self.db.execute(
                 self.q.VECTOR_SEARCH_SQL,
                 (embedding_str, limit),
@@ -215,7 +302,7 @@ class ChunkingUseCase:
             logger.exception("[Chunking Use Case] vector_search failed")
             return []
 
-    # ---- HYBRID SEARCH ----
+
     async def hybrid_search(
         self,
         query: str,
@@ -247,6 +334,7 @@ class ChunkingUseCase:
         except Exception:
             logger.exception("[Chunking Use Case] hybrid_search failed")
             return []
+
 
     # ---- NORMALIZE BM25 ----
     def _normalize_bm25(self, rows):
@@ -285,7 +373,9 @@ class ChunkingUseCase:
                 "bm25_score": float(row.get("bm25_score", 0.0)),
                 "vector_score": 0.0,
             })
+
         return out
+
 
     # ---- NORMALIZE VECTOR ----
     def _normalize_vector(self, rows):
@@ -324,7 +414,9 @@ class ChunkingUseCase:
                 "bm25_score": 0.0,
                 "vector_score": float(row.get("vector_score", 0.0)),
             })
+
         return out
+
 
     # ---- MERGE ----
     def _merge(self, bm25, vector, weights):
