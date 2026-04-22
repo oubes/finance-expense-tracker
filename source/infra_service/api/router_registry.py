@@ -9,13 +9,21 @@ from source.infra_service.api.routes.transactions_memory_routes import router as
 from source.infra_service.api.routes.user_facts_memory_routes import router as user_facts_memory_router
 
 
+#--- Router Registry ----
 def register_routes(app):
+    # ---- Health ----
     app.include_router(health_router, prefix="/api/infra/health", tags=["Health"])
+    
+    # ---- LLM ----
     app.include_router(llm_router, prefix="/api/infra/llm", tags=["LLM"])
+    
+    # ---- Embedder ----
     app.include_router(embedder_router, prefix="/api/infra/embedding", tags=["Embedder"])
     
+    # ---- Memory ----
     app.include_router(chunks_db_router, prefix="/api/infra/chunks_db", tags=["Chunks Database"])
     app.include_router(semantic_memory_router, prefix="/api/infra/semantic_memory", tags=["Semantic Memory"])
     app.include_router(transactions_memory_router, prefix="/api/infra/transactions_memory", tags=["Transactions Memory"])
     app.include_router(user_facts_memory_router, prefix="/api/infra/user_facts_memory", tags=["User Facts Memory"])
+    
     return app
