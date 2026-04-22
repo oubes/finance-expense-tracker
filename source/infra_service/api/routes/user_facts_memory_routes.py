@@ -2,9 +2,7 @@
 from fastapi import APIRouter, status, Depends, Body
 
 from source.infra_service.api.models.user_facts_memory_model import (
-    HealthCheckRequest,
     HealthCheckResponse,
-    InitTableRequest,
     InitTableResponse,
     UpsertUserFactsRequest,
     UpsertUserFactsResponse,
@@ -42,7 +40,6 @@ router = APIRouter()
 # ---- Health ----
 @router.get("/health", response_model=HealthCheckResponse)
 async def health(
-    body: HealthCheckRequest = Body(default={}),
     use_case=Depends(get_user_facts_use_case),
 ):
     try:
@@ -77,6 +74,64 @@ async def init(
         logger.exception("[UserFacts Routes] init failed")
         raise InternalServerException("Init user_facts failed")
 
+# ---- Count ----
+@router.get("/count", response_model=CountResponse)
+async def count(
+    use_case=Depends(get_user_facts_use_case),
+):
+    try:
+        count = await use_case.count()
+
+        return CountResponse(
+            count=count,
+            message=f"Total rows: {count}",
+        )
+
+    except Exception:
+        logger.exception("[UserFacts Routes] count failed")
+        raise InternalServerException("Count failed")
+
+# ---- Count Per User ----
+@router.get("/count/{user_id}", response_model=CountUserResponse)
+async def count_user(
+    body: CountUserRequest,
+    use_case=Depends(get_user_facts_use_case),
+):
+    if not body.user_id:
+        raise ValidationException("user_id required")
+
+    try:
+        count = await use_case.count_user(body.user_id)
+
+        return CountUserResponse(
+            count=count,
+            message=f"User rows: {count}",
+        )
+
+    except Exception:
+        logger.exception("[UserFacts Routes] count_user failed")
+        raise InternalServerException("Count user failed")
+
+# ---- Get ----
+@router.get("/get/{user_id}", response_model=GetUserFactsResponse)
+async def get_user_facts(
+    user_id: str,
+    use_case=Depends(get_user_facts_use_case),
+):
+    if not user_id:
+        raise ValidationException("user_id required")
+
+    try:
+        row = await use_case.get_user_facts(user_id)
+
+        result = UserFactsOut.model_validate(row) if row else None
+
+        return GetUserFactsResponse(result=result)
+
+    except Exception:
+        logger.exception("[UserFacts Routes] get_user_facts failed")
+        raise InternalServerException("Get user facts failed")
+
 
 # ---- Upsert ----
 @router.post("/upsert", response_model=UpsertUserFactsResponse)
@@ -109,68 +164,7 @@ async def upsert(
     except Exception:
         logger.exception("[UserFacts Routes] upsert failed")
         raise InternalServerException("Upsert user facts failed")
-    
 
-# ---- Get ----
-@router.post("/get", response_model=GetUserFactsResponse)
-async def get_user_facts(
-    body: GetUserFactsRequest,
-    use_case=Depends(get_user_facts_use_case),
-):
-    if not body.user_id:
-        raise ValidationException("user_id required")
-
-    try:
-        row = await use_case.get_user_facts(body.user_id)
-
-        result = UserFactsOut.model_validate(row) if row else None
-
-        return GetUserFactsResponse(result=result)
-
-    except Exception:
-        logger.exception("[UserFacts Routes] get_user_facts failed")
-        raise InternalServerException("Get user facts failed")
-
-
-# ---- Count ----
-@router.post("/count", response_model=CountResponse)
-async def count(
-    body: CountRequest = Body(default={}),
-    use_case=Depends(get_user_facts_use_case),
-):
-    try:
-        count = await use_case.count()
-
-        return CountResponse(
-            count=count,
-            message=f"Total rows: {count}",
-        )
-
-    except Exception:
-        logger.exception("[UserFacts Routes] count failed")
-        raise InternalServerException("Count failed")
-
-
-# ---- Count Per User ----
-@router.post("/count_user", response_model=CountUserResponse)
-async def count_user(
-    body: CountUserRequest,
-    use_case=Depends(get_user_facts_use_case),
-):
-    if not body.user_id:
-        raise ValidationException("user_id required")
-
-    try:
-        count = await use_case.count_user(body.user_id)
-
-        return CountUserResponse(
-            count=count,
-            message=f"User rows: {count}",
-        )
-
-    except Exception:
-        logger.exception("[UserFacts Routes] count_user failed")
-        raise InternalServerException("Count user failed")
 
 # ---- Update ----
 @router.patch("/update/{user_id}", response_model=UpdateUserFactsResponse)
