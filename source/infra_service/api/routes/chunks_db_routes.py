@@ -54,33 +54,6 @@ async def health_check(chunking_use_case=Depends(get_chunking_use_case)):
         logger.exception("[Chunking Routes] health check failed")
         raise ServiceUnavailableException("Chunking")
 
-
-# ---- INIT ----
-@router.get(
-    "/init",
-    response_model=InitTableResponse,
-    status_code=status.HTTP_200_OK
-)
-async def init(chunking_use_case=Depends(get_chunking_use_case)):
-    try:
-        already = await chunking_use_case.init()
-
-        if already:
-            return InitTableResponse(
-                message="already initialized",
-                status=status.HTTP_200_OK,
-            )
-
-        return InitTableResponse(
-            message="initialized",
-            status=status.HTTP_201_CREATED,
-        )
-
-    except Exception:
-        logger.exception("[Chunking Routes] init failed")
-        raise InternalServerException("init failed")
-
-
 # ---- COUNT ----
 @router.get(
     "/count",
@@ -112,6 +85,31 @@ async def get_chunk(chunk_id: str, chunking_use_case=Depends(get_chunking_use_ca
 
 
 # -------------------- POST OPERATIONS --------------------
+
+# ---- INIT ----
+@router.post(
+    "/init",
+    response_model=InitTableResponse,
+    status_code=status.HTTP_200_OK
+)
+async def init(chunking_use_case=Depends(get_chunking_use_case)):
+    try:
+        already = await chunking_use_case.init()
+
+        if already:
+            return InitTableResponse(
+                message="already initialized",
+                status=status.HTTP_200_OK,
+            )
+
+        return InitTableResponse(
+            message="initialized",
+            status=status.HTTP_201_CREATED,
+        )
+
+    except Exception:
+        logger.exception("[Chunking Routes] init failed")
+        raise InternalServerException("init failed")
 
 # ---- INSERT ----
 @router.post(
