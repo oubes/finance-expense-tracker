@@ -1,1 +1,1 @@
-from source.ingestion_service.adapters.infra_adapter import LLMClient, EmbeddingClient, VectorDBClient
+from source.chat_service.adapters.infra_adapter import LLMClient, EmbeddingClient, VectorDBClient

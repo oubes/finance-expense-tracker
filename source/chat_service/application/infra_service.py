@@ -51,6 +51,12 @@ class LLMService(BaseInfraService):
     def __init__(self, adapter):
         super().__init__("LLM_SERVICE")
         self.adapter = adapter
+        
+    async def health_check(self) -> dict[str, Any]:
+        return await self._execute(
+            self.adapter.health_check,
+        )
+
 
     async def generate(self, prompt: str, **kwargs) -> dict[str, Any]:
         return await self._execute(

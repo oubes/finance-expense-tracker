@@ -3,8 +3,8 @@
 import logging
 from fastapi import FastAPI
 
-from source.ingestion_service.core.bootstrap.lifespan import lifespan
-from source.ingestion_service.api.router_registry import register_routes
+from source.chat_service.core.bootstrap.lifespan import lifespan
+from source.chat_service.api.router_registry import register_routes
 
 
 

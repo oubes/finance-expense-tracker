@@ -3,8 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import logging
 
-from source.ingestion_service.adapters.infra_adapter import LLMClient, EmbeddingClient, VectorDBClient
-from source.ingestion_service.core.config.settings import AppSettings
+from source.chat_service.adapters.infra_adapter import LLMClient, EmbeddingClient, VectorDBClient
+from source.chat_service.core.config.settings import AppSettings
 
 logger = logging.getLogger(__name__)
 

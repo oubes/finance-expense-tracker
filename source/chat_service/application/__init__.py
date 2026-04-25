@@ -1,1 +1,1 @@
-from source.ingestion_service.application.infra_service import LLMService, EmbeddingService, VectorDBService
+from source.chat_service.application.infra_service import LLMService, EmbeddingService, VectorDBService
