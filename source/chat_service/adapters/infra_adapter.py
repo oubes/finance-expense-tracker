@@ -34,7 +34,17 @@ class LLMClient(BaseInfraClient):
 
     async def health_check(self) -> dict:
         return await self.health("/api/infra/llm/health")
-
+    
+    async def generate(self, prompt: str) -> str:
+        return (
+            await self.post(
+                "/api/infra/llm/generate",
+                json=prompt,
+                timeout=10.0,
+            )
+        )
+        
+    
 
 # ---------- Embedding Client ----------
 class EmbeddingClient(BaseInfraClient):
