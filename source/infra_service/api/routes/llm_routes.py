@@ -61,6 +61,7 @@ async def generate(
     llm_service: LLMService = Depends(get_llm_service),
     settings=Depends(get_settings),
 ):
+    print(message)
     if not message.user_message:
         raise ValidationException("user_message is empty")
 

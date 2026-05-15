@@ -57,7 +57,6 @@ class LLMService(BaseInfraService):
             self.adapter.health_check,
         )
 
-
     async def generate(self, prompt: str, **kwargs) -> dict[str, Any]:
         return await self._execute(
             self.adapter.generate,
